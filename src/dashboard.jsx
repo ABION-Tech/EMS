@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── CONFIG ──────────────────────────────────────────────────
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxpBss-yR-9MSz1AAclxNMqypEmhIoZvX_lytvXgnLN-KxrxOcdY43TYGasAKZH7QXg5Q/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbx6RU2hcrNv9ig33c1tp-OGvw1-Wx_BkwSjfzm1_8zvGeKRcQB82VbYYgJOfJ3l3l1LeQ/exec";
 
 // ── COLOURS ─────────────────────────────────────────────────
 const C = {

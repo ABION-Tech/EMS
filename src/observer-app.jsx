@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── CONFIG ─────────────────────────────────────────────────────
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw3TRTxBZlaOit_JW7Qw7Xm41pSobJdTKGmvBDQvv3xgH3vYOg8j8YYoai_MLsHH1cMjw/exec"; // ← paste deployed GAS URL
+const GAS_URL = "https://script.google.com/macros/s/AKfycbx6RU2hcrNv9ig33c1tp-OGvw1-Wx_BkwSjfzm1_8zvGeKRcQB82VbYYgJOfJ3l3l1LeQ/exec"; // ← paste deployed GAS URL
 
 // ── COLOURS ───────────────────────────────────────────────────
 const C = {
@@ -1380,23 +1380,14 @@ function LoginScreen({ onLogin }) {
     if (!password.trim()) { setErrMsg("Please enter your password."); return; }
     setLoading(true);
     try {
-      if (GAS_URL.includes("YOUR_GAS")) {
-        // Demo mode — accept any non-empty credentials
-        await new Promise(r => setTimeout(r, 1000));
-        onLogin({
-          name: "Demo Observer",
-          phone: phone.trim(),
-          role: "Accredited Observer",
-          state: "Lagos",
-          observerId: "OBS-DEMO-001",
-        });
-        return;
-      }
-      const res = await fetch(GAS_URL + "?action=login", {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ phone: phone.trim(), password: password.trim() }),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(
+        GAS_URL + "?action=login&phone=" + encodeURIComponent(phone.trim()) +
+          "&password=" + encodeURIComponent(password.trim()),
+        { method: "GET", signal: controller.signal }
+      );
+      clearTimeout(timeout);
       const data = await res.json();
       if (data.success) {
         onLogin(data.user);
@@ -1404,7 +1395,11 @@ function LoginScreen({ onLogin }) {
         setErrMsg(data.error || "Invalid phone number or password.");
       }
     } catch (e) {
-      setErrMsg("Network error. Check your connection and try again.");
+      if (e.name === "AbortError") {
+        setErrMsg("Request timed out. Please try again.");
+      } else {
+        setErrMsg("Unable to reach server. Check your connection and try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -1520,8 +1515,7 @@ export default function ObserverApp() {
     setScreen("login");
   };
 
-  if (screen === "splash") return <Splash onDone={()=>setScreen("login")}/>;
-  if (screen === "login")  return <LoginScreen onLogin={u=>{setUser(u);setScreen("app");}}/>;
+  if (screen === "splash") return <Splash onDone={()=>{ setUser({ name:"Field Observer", phone:"08000000000", role:"Accredited Observer", state:"FCT", observerId:"OBS-001" }); setScreen("app"); }}/>;
 
   return (
     <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",

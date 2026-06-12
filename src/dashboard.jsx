@@ -1,5 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
+// ── RESPONSIVE HOOK ───────────────────────────────────────────
+function useWindowWidth() {
+  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1200);
+  useEffect(() => {
+    const handler = () => setW(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return w;
+}
+
 // ── CONFIG ──────────────────────────────────────────────────
 const GAS_URL = "https://script.google.com/macros/s/AKfycbx6RU2hcrNv9ig33c1tp-OGvw1-Wx_BkwSjfzm1_8zvGeKRcQB82VbYYgJOfJ3l3l1LeQ/exec";
 
@@ -242,7 +253,7 @@ function AlertTicker() {
     return () => clearInterval(t);
   }, []);
   return (
-    <div style={{background:"#111827",padding:"6px 24px",display:"flex",alignItems:"center",gap:12,overflow:"hidden"}}>
+    <div style={{background:"#111827",padding:typeof window!=="undefined"&&window.innerWidth<768?"6px 12px":"6px 24px",display:"flex",alignItems:"center",gap:10,overflow:"hidden"}}>
       <span style={{fontSize:10,fontWeight:700,color:"#EF4444",textTransform:"uppercase",
         letterSpacing:1.2,flexShrink:0}}>LIVE</span>
       <div style={{width:1,height:12,background:"#374151",flexShrink:0}}/>
@@ -368,9 +379,11 @@ function IncidentPopup({ state, incidents, onClose }) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:300,
       display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{background:C.white,borderRadius:16,
-        width:"100%",maxWidth:480,maxHeight:"80vh",overflowY:"auto",
-        boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.white,
+        borderRadius:typeof window!=="undefined"&&window.innerWidth<768?12:16,
+        width:"100%",maxWidth:480,
+        maxHeight:typeof window!=="undefined"&&window.innerWidth<768?"92vh":"80vh",
+        overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
         <div style={{padding:"20px 20px 16px",display:"flex",justifyContent:"space-between",
           alignItems:"center",borderBottom:`1px solid ${C.border}`}}>
           <div>
@@ -423,9 +436,11 @@ function AllReportsModal({ incidents, onClose }) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:300,
       display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{background:C.white,borderRadius:16,width:"100%",
-        maxWidth:680,maxHeight:"88vh",display:"flex",flexDirection:"column",
-        boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.white,
+        borderRadius:typeof window!=="undefined"&&window.innerWidth<768?12:16,
+        width:"100%",maxWidth:680,
+        maxHeight:typeof window!=="undefined"&&window.innerWidth<768?"95vh":"88vh",
+        display:"flex",flexDirection:"column",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
         <div style={{padding:"20px 20px 16px",borderBottom:`1px solid ${C.border}`,
           display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
           <div>
@@ -826,6 +841,8 @@ export default function Dashboard() {
   const [showAll,    setShowAll]    = useState(false);
   const [showByState,setShowByState]= useState(false);
 
+  const isMobile = useWindowWidth() < 768;
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -870,7 +887,8 @@ export default function Dashboard() {
 
   return (
     <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif",
-      background:C.bg,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      background:C.bg,minHeight:"100vh",display:"flex",flexDirection:"column",
+      overflow:isMobile?"auto":"hidden",height:isMobile?"auto":"100vh"}}>
       <style>{`
         *{box-sizing:border-box;margin:0;padding:0}
         ::-webkit-scrollbar{width:5px}
@@ -880,23 +898,30 @@ export default function Dashboard() {
           0%,100%{box-shadow:0 0 0 3px rgba(239,68,68,0.2)}
           50%{box-shadow:0 0 0 6px rgba(239,68,68,0.05)}
         }
+        @media(max-width:767px){
+          .ems-stat-card{padding:12px 14px!important}
+          .ems-stat-card .value{font-size:22px!important}
+        }
       `}</style>
 
       {/* ── Splash Screen ── */}
       {/* ── Top Bar ── */}
       <div style={{flexShrink:0,background:C.white,borderBottom:`1px solid ${C.border}`,
-        padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        padding:isMobile?"10px 16px":"14px 24px",
+        display:"flex",flexDirection:isMobile?"column":"row",
+        justifyContent:"space-between",alignItems:isMobile?"flex-start":"center",gap:isMobile?8:0}}>
         <div>
-          <div style={{display:"inline-block",border:"2px solid #2DB94D",borderRadius:4,padding:"2px 8px",marginBottom:4}}>
-            <span style={{fontSize:18,fontWeight:800,color:C.green}}>EMS Dashboard</span>
+          <div style={{display:"inline-block",border:"2px solid #2DB94D",borderRadius:4,padding:"2px 8px",marginBottom:2}}>
+            <span style={{fontSize:isMobile?15:18,fontWeight:800,color:C.green}}>EMS Dashboard</span>
           </div>
-          <div style={{fontSize:13,color:C.sub}}>Real-time election monitoring and incident tracking</div>
+          {!isMobile && <div style={{fontSize:13,color:C.sub}}>Real-time election monitoring and incident tracking</div>}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           {loading && <span style={{fontSize:12,color:C.sub}}>Refreshing…</span>}
           {!loading && fetchErr && (
             <span style={{fontSize:11,color:"#EF4444",background:"#FEF2F2",border:"1px solid #FECACA",
-              borderRadius:6,padding:"3px 8px",maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}
+              borderRadius:6,padding:"3px 8px",maxWidth:isMobile?200:260,overflow:"hidden",
+              textOverflow:"ellipsis",whiteSpace:"nowrap"}}
               title={fetchErr}>⚠ {fetchErr}</span>
           )}
           <button onClick={load} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,
@@ -917,9 +942,12 @@ export default function Dashboard() {
         <AlertTicker/>
       </div>
 
-      <div style={{padding:"18px 24px",flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{padding:isMobile?"12px 14px":"18px 24px",flex:1,
+        minHeight:isMobile?"auto":0,display:"flex",flexDirection:"column",
+        overflow:isMobile?"visible":"hidden"}}>
         {/* ── Stat Cards ── */}
-        <div style={{display:"flex",gap:14,marginBottom:18,flexShrink:0}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)",
+          gap:isMobile?10:14,marginBottom:isMobile?12:18,flexShrink:0}}>
           <StatCard label="Number of Occurrences" value={totalReports.toLocaleString()}
             sub="+12% from last week" color={C.moderate} icon={<AlertTriangleIcon color={C.moderate}/>}/>
           <StatCard label="Location of Election"  value={`${summary?.states ?? new Set(incidents.map(i=>i.state).filter(Boolean)).size} States`}
@@ -931,36 +959,36 @@ export default function Dashboard() {
         </div>
 
         {/* ── Main Layout ── */}
-        <div style={{display:"flex",gap:18,alignItems:"stretch",flex:1,minHeight:0}}>
+        <div style={{display:"flex",flexDirection:isMobile?"column":"row",
+          gap:isMobile?12:18,alignItems:"stretch",flex:1,minHeight:isMobile?"auto":0}}>
 
           {/* Left: Map */}
-          <div style={{flex:"1 1 0",minWidth:0,background:C.white,border:`1px solid ${C.border}`,
-            borderRadius:10,padding:16,display:"flex",flexDirection:"column",
-            position:"relative",zIndex:0,isolation:"isolate",minHeight:0}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexShrink:0}}>
-              <span style={{fontSize:14,fontWeight:600,color:C.text}}>Incident Distribution Map</span>
-              <div style={{display:"flex",alignItems:"center",gap:14,fontSize:12,color:C.sub}}>
-                <span style={{display:"flex",alignItems:"center",gap:4}}>
-                  <span style={{width:10,height:10,borderRadius:"50%",background:"#9CA3AF",display:"inline-block"}}/>
-                  Low
-                </span>
-                <span style={{display:"flex",alignItems:"center",gap:4}}>
-                  <span style={{width:12,height:12,borderRadius:"50%",background:C.moderate,display:"inline-block"}}/>
-                  Moderate
-                </span>
-                <span style={{display:"flex",alignItems:"center",gap:4}}>
-                  <span style={{width:14,height:14,borderRadius:"50%",background:C.critical,display:"inline-block"}}/>
-                  Critical
-                </span>
+          <div style={{flex:isMobile?"none":"1 1 0",minWidth:0,background:C.white,
+            border:`1px solid ${C.border}`,borderRadius:10,padding:isMobile?12:16,
+            display:"flex",flexDirection:"column",position:"relative",zIndex:0,
+            isolation:"isolate",minHeight:0,
+            height:isMobile?340:"auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+              marginBottom:8,flexShrink:0}}>
+              <span style={{fontSize:isMobile?13:14,fontWeight:600,color:C.text}}>
+                {isMobile?"Incident Map":"Incident Distribution Map"}
+              </span>
+              <div style={{display:"flex",alignItems:"center",gap:isMobile?8:14,fontSize:12,color:C.sub}}>
+                {[["#9CA3AF","Low"],["#F97316","Mod"],["#EF4444","Crit"]].map(([bg,label])=>(
+                  <span key={label} style={{display:"flex",alignItems:"center",gap:3}}>
+                    <span style={{width:9,height:9,borderRadius:"50%",background:bg,display:"inline-block",flexShrink:0}}/>
+                    {!isMobile && label}
+                  </span>
+                ))}
                 <button onClick={()=>setMapFullscreen(true)}
                   title="Fullscreen map"
-                  style={{marginLeft:6,padding:"4px 8px",borderRadius:6,border:`1px solid ${C.border}`,
+                  style={{padding:"4px 8px",borderRadius:6,border:`1px solid ${C.border}`,
                     background:C.white,cursor:"pointer",display:"flex",alignItems:"center",gap:5,
                     fontSize:11,fontWeight:600,color:C.text}}>
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
                     <path d="M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  Expand
+                  {!isMobile && "Expand"}
                 </button>
               </div>
             </div>
@@ -1006,8 +1034,9 @@ export default function Dashboard() {
           )}
 
           {/* Right: Reports panel */}
-          <div style={{width:310,flexShrink:0,background:C.white,border:`1px solid ${C.border}`,
-            borderRadius:10,display:"flex",flexDirection:"column",minHeight:0}}>
+          <div style={{width:isMobile?"100%":310,flexShrink:isMobile?1:0,background:C.white,
+            border:`1px solid ${C.border}`,borderRadius:10,display:"flex",flexDirection:"column",
+            minHeight:isMobile?300:0}}>
             <div style={{padding:"14px 16px",borderBottom:`1px solid ${C.border}`,
               display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
               <span style={{fontSize:13,fontWeight:600,color:C.text}}>Recent Incident Reports</span>

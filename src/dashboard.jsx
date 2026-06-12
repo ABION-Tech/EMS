@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── CONFIG ──────────────────────────────────────────────────
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxpBss-yR-9MSz1AAclxNMqypEmhIoZvX_lytvXgnLN-KxrxOcdY43TYGasAKZH7QXg5Q/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw3TRTxBZlaOit_JW7Qw7Xm41pSobJdTKGmvBDQvv3xgH3vYOg8j8YYoai_MLsHH1cMjw/exec";
 
 // ── COLOURS ─────────────────────────────────────────────────
 const C = {
@@ -538,7 +538,7 @@ export default function Dashboard() {
 
   return (
     <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif",
-      background:C.bg,minHeight:"100vh"}}>
+      background:C.bg,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <style>{`
         *{box-sizing:border-box;margin:0;padding:0}
         ::-webkit-scrollbar{width:5px}
@@ -551,7 +551,7 @@ export default function Dashboard() {
       `}</style>
 
       {/* ── Top Bar ── */}
-      <div style={{background:C.white,borderBottom:`1px solid ${C.border}`,
+      <div style={{flexShrink:0,background:C.white,borderBottom:`1px solid ${C.border}`,
         padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
           <div style={{display:"inline-block",border:"2px solid #2DB94D",borderRadius:4,padding:"2px 8px",marginBottom:4}}>
@@ -575,11 +575,13 @@ export default function Dashboard() {
       </div>
 
       {/* ── Alert Ticker ── */}
-      <AlertTicker/>
+      <div style={{flexShrink:0}}>
+        <AlertTicker/>
+      </div>
 
-      <div style={{padding:"18px 24px"}}>
+      <div style={{padding:"18px 24px",flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {/* ── Stat Cards ── */}
-        <div style={{display:"flex",gap:14,marginBottom:18}}>
+        <div style={{display:"flex",gap:14,marginBottom:18,flexShrink:0}}>
           <StatCard label="Number of Occurrences" value={totalReports.toLocaleString()}
             sub="+12% from last week" icon="⚠️"/>
           <StatCard label="Location of Election"  value={`${summary.states} States`}
@@ -591,13 +593,13 @@ export default function Dashboard() {
         </div>
 
         {/* ── Main Layout ── */}
-        <div style={{display:"flex",gap:18,alignItems:"flex-start"}}>
+        <div style={{display:"flex",gap:18,alignItems:"stretch",flex:1,minHeight:0}}>
 
           {/* Left: Map */}
           <div style={{flex:"1 1 0",minWidth:0,background:C.white,border:`1px solid ${C.border}`,
             borderRadius:10,padding:16,display:"flex",flexDirection:"column",
-            position:"relative",zIndex:0,isolation:"isolate"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            position:"relative",zIndex:0,isolation:"isolate",minHeight:0}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexShrink:0}}>
               <span style={{fontSize:14,fontWeight:600,color:C.text}}>Incident Distribution Map</span>
               <div style={{display:"flex",alignItems:"center",gap:14,fontSize:12,color:C.sub}}>
                 <span style={{display:"flex",alignItems:"center",gap:4}}>
@@ -615,19 +617,19 @@ export default function Dashboard() {
               </div>
             </div>
             {/* Real Leaflet map */}
-            <div style={{position:"relative",zIndex:0,borderRadius:8,overflow:"hidden",height:440,border:`1px solid ${C.border}`}}>
+            <div style={{position:"relative",zIndex:0,borderRadius:8,overflow:"hidden",flex:1,minHeight:0,border:`1px solid ${C.border}`}}>
               <LeafletIncidentMap incidents={incidents} onMarkerClick={handleMarkerClick}/>
             </div>
-            <p style={{fontSize:11,color:C.sub,marginTop:8,textAlign:"center"}}>
+            <p style={{fontSize:11,color:C.sub,marginTop:8,textAlign:"center",flexShrink:0}}>
               Click any marker to view incident details · Powered by OpenStreetMap (no API key required)
             </p>
           </div>
 
           {/* Right: Reports panel */}
           <div style={{width:310,flexShrink:0,background:C.white,border:`1px solid ${C.border}`,
-            borderRadius:10,display:"flex",flexDirection:"column",minHeight:500}}>
+            borderRadius:10,display:"flex",flexDirection:"column",minHeight:0}}>
             <div style={{padding:"14px 16px",borderBottom:`1px solid ${C.border}`,
-              display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
               <span style={{fontSize:13,fontWeight:600,color:C.text}}>Recent Incident Reports</span>
               <button onClick={()=>setShowByState(true)}
                 style={{background:C.green,color:"#fff",border:"none",borderRadius:6,
@@ -636,7 +638,7 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div style={{flex:1,overflowY:"auto",padding:"0 16px",maxHeight:420}}>
+            <div style={{flex:1,overflowY:"auto",padding:"0 16px",minHeight:0}}>
               {recent.map((inc,i)=>(
                 <IncidentRow key={i} inc={inc}
                   onClick={()=>setPopup({ state:inc.state, incs:[inc] })}/>

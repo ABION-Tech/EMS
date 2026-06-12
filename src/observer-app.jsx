@@ -1519,8 +1519,8 @@ export default function ObserverApp() {
 
   return (
     <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
-      background:C.bg,height:"100dvh",maxWidth:430,margin:"0 auto",
-      position:"relative",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+      background:C.bg,height:"100dvh",width:"100%",maxWidth:430,margin:"0 auto",
+      position:"relative",overflow:"hidden",display:"flex",flexDirection:"column",boxSizing:"border-box"}}>
       <style>{`*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         select{appearance:auto}`}</style>
 

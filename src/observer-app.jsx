@@ -320,8 +320,10 @@ function ImageModal({ user, onClose, onSubmit }) {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [fileObj, setFileObj] = useState(null);
   const [coords, setCoords] = useState(null);
   const fileRef = useRef(null);
+  const galleryRef = useRef(null);
   const refId = useRef("INC-" + Date.now().toString().slice(-6));
 
   useEffect(() => {
@@ -334,6 +336,7 @@ function ImageModal({ user, onClose, onSubmit }) {
   const onFile = e => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setFileObj(file);
     const reader = new FileReader();
     reader.onload = ev => setPreview(ev.target.result);
     reader.readAsDataURL(file);
@@ -343,9 +346,14 @@ function ImageModal({ user, onClose, onSubmit }) {
 
   const submit = async () => {
     setSubmitting(true);
+    // Upload image to Drive if we have a file, get back a shareable URL
+    let mediaUrl = "";
+    if (fileObj) {
+      mediaUrl = await uploadMediaToDrive(fileObj, fileObj.type || "image/jpeg", `${refId.current}.jpg`);
+    }
     await onSubmit({ reporter:user?.name||"Observer", reportType:"IMAGE", state, lga, severity,
       description: desc || "Image evidence captured",
-      lat: coords?.lat || "", lng: coords?.lng || "", mediaRef: refId.current });
+      lat: coords?.lat || "", lng: coords?.lng || "", mediaRef: mediaUrl || refId.current });
     setSubmitting(false);
     setSuccess(true);
   };
@@ -356,6 +364,9 @@ function ImageModal({ user, onClose, onSubmit }) {
     <Modal title="Image Report" onClose={onClose}>
       {/* Hidden file input — opens camera on mobile */}
       <input ref={fileRef} type="file" accept="image/*" capture="environment"
+        style={{display:"none"}} onChange={onFile}/>
+      {/* Hidden file input — gallery / file picker (no capture) */}
+      <input ref={galleryRef} type="file" accept="image/*"
         style={{display:"none"}} onChange={onFile}/>
 
       <div style={{background:"#F4F6F8",border:`2px dashed ${preview?C.green:C.border}`,
@@ -380,11 +391,17 @@ function ImageModal({ user, onClose, onSubmit }) {
         )}
       </div>
 
-      <button onClick={openCamera} style={{...submitBtnStyle,marginTop:0,
-        background:preview?"#F9FAFB":"linear-gradient(135deg,#3B82F6,#2563EB)",
-        color:preview?C.text:"#fff",border:preview?`1.5px solid ${C.border}`:"none",fontSize:14}}>
-        {preview ? "📷 Retake Photo" : "📷 Open Camera"}
-      </button>
+      <div style={{display:"flex",gap:8,marginTop:0}}>
+        <button onClick={openCamera} style={{...submitBtnStyle,flex:1,
+          background:preview?"#F9FAFB":"linear-gradient(135deg,#3B82F6,#2563EB)",
+          color:preview?C.text:"#fff",border:preview?`1.5px solid ${C.border}`:"none",fontSize:14}}>
+          {preview ? "📷 Retake" : "📷 Camera"}
+        </button>
+        <button onClick={()=>galleryRef.current?.click()} style={{...submitBtnStyle,flex:1,
+          background:"#F9FAFB",color:C.text,border:`1.5px solid ${C.border}`,fontSize:14}}>
+          🖼 Pick File
+        </button>
+      </div>
 
       {preview && (
         <>
@@ -423,6 +440,7 @@ function VideoModal({ user, onClose, onSubmit }) {
   const [done, setDone] = useState(false);
   const [secs, setSecs] = useState(0);
   const [videoURL, setVideoURL] = useState(null);
+  const [videoBlob, setVideoBlob] = useState(null);
   const [state, setState] = useState("");
   const [lga, setLga] = useState("");
   const [desc, setDesc] = useState("");
@@ -430,6 +448,7 @@ function VideoModal({ user, onClose, onSubmit }) {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errMsg, setErrMsg] = useState("");
+  const [videoSizeWarn, setVideoSizeWarn] = useState("");
   const [useCamera, setUseCamera] = useState(false);
   const timerRef = useRef(null);
   const mrRef = useRef(null);
@@ -442,14 +461,32 @@ function VideoModal({ user, onClose, onSubmit }) {
   const startLiveRec = async () => {
     setErrMsg("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+      // Constrain to 720p max — reduces file size significantly vs 1080p/4K
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 24, max: 30 } },
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
       if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
       chunksRef.current = [];
-      const mr = new MediaRecorder(stream);
+
+      // Pick best supported codec, with low bitrate (1Mbps video + 64kbps audio ≈ ~7MB/min)
+      const mimeOptions = [
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm",
+        "video/mp4",
+      ];
+      const mime = mimeOptions.find(m => MediaRecorder.isTypeSupported(m)) || "";
+      const mr = new MediaRecorder(stream, {
+        ...(mime ? { mimeType: mime } : {}),
+        videoBitsPerSecond: 1_000_000,   // 1 Mbps
+        audioBitsPerSecond:    64_000,   // 64 kbps
+      });
       mrRef.current = mr;
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
+        const blob = new Blob(chunksRef.current, { type: mime || "video/webm" });
+        setVideoBlob(blob);
         setVideoURL(URL.createObjectURL(blob));
         stream.getTracks().forEach(t => t.stop());
         if (videoRef.current) videoRef.current.srcObject = null;
@@ -472,6 +509,14 @@ function VideoModal({ user, onClose, onSubmit }) {
   const onFileVideo = e => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Warn if picked file exceeds 50MB — browser can't re-encode video, record live instead
+    const WARN_BYTES = 50 * 1024 * 1024;
+    if (file.size > WARN_BYTES) {
+      setVideoSizeWarn(`This video is ${(file.size / (1024*1024)).toFixed(1)} MB — it may be too large to upload. For best results, use live recording (≤ ~7 MB/min).`);
+    } else {
+      setVideoSizeWarn("");
+    }
+    setVideoBlob(file);
     setVideoURL(URL.createObjectURL(file));
     setSecs(0);
     setDone(true);
@@ -479,8 +524,13 @@ function VideoModal({ user, onClose, onSubmit }) {
 
   const submit = async () => {
     setSubmitting(true);
+    // Upload video to Drive if we have a blob, get back a shareable URL
+    let mediaUrl = "";
+    if (videoBlob) {
+      mediaUrl = await uploadMediaToDrive(videoBlob, videoBlob.type || "video/webm", `${refId.current}.webm`);
+    }
     await onSubmit({ reporter:user?.name||"Observer", reportType:"VIDEO", state, lga, severity,
-      description: desc || `Video evidence · ${fmt(secs)}`, lat:"", lng:"", mediaRef:refId.current });
+      description: desc || `Video evidence · ${fmt(secs)}`, lat:"", lng:"", mediaRef: mediaUrl || refId.current });
     setSubmitting(false);
     setSuccess(true);
   };
@@ -490,6 +540,7 @@ function VideoModal({ user, onClose, onSubmit }) {
   return (
     <Modal title="Video Report" onClose={onClose}>
       {errMsg && <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#EF4444",marginBottom:12}}>{errMsg}</div>}
+      {videoSizeWarn && <div style={{background:"#FFFBEB",border:"1px solid #FCD34D",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#92400E",marginBottom:12}}>⚠️ {videoSizeWarn}</div>}
       {/* Hidden file input */}
       <input ref={fileRef} type="file" accept="video/*" capture="environment"
         style={{display:"none"}} onChange={onFileVideo}/>
@@ -536,6 +587,18 @@ function VideoModal({ user, onClose, onSubmit }) {
 
       {done && (
         <>
+          <div style={{display:"flex",gap:8,marginBottom:4}}>
+            <button onClick={()=>{setDone(false);setVideoURL(null);setVideoBlob(null);setSecs(0);setVideoSizeWarn("");chunksRef.current=[];}}
+              style={{...submitBtnStyle,marginTop:0,flex:1,fontSize:12,
+                background:"#F9FAFB",color:C.text,border:`1.5px solid ${C.border}`,boxShadow:"none"}}>
+              🔄 Re-record
+            </button>
+            <button onClick={()=>fileRef.current?.click()}
+              style={{...submitBtnStyle,marginTop:0,flex:1,fontSize:12,
+                background:"#F9FAFB",color:C.text,border:`1.5px solid ${C.border}`,boxShadow:"none"}}>
+              📁 Pick Different
+            </button>
+          </div>
           <div style={{marginTop:4}}>
             <label style={labelStyle}>State</label>
             <select style={inputStyle} value={state} onChange={e=>setState(e.target.value)}>
@@ -895,12 +958,14 @@ function ReportCard({ icon, label, onClick }) {
   const [pressed, setPressed] = useState(false);
   return (
     <button
-      onMouseDown={()=>setPressed(true)} onMouseUp={()=>{setPressed(false);onClick();}}
-      onMouseLeave={()=>setPressed(false)}
-      onTouchStart={()=>setPressed(true)} onTouchEnd={()=>{setPressed(false);onClick();}}
+      onClick={onClick}
+      onPointerDown={()=>setPressed(true)}
+      onPointerUp={()=>setPressed(false)}
+      onPointerLeave={()=>setPressed(false)}
       style={{background:C.white,border:`1.5px solid ${pressed?C.green:C.border}`,
         borderRadius:14,padding:"16px 10px 12px",display:"flex",flexDirection:"column",
-        alignItems:"center",gap:8,cursor:"pointer",
+        alignItems:"center",gap:8,cursor:"pointer",touchAction:"manipulation",
+        WebkitTapHighlightColor:"transparent",
         transform:pressed?"scale(0.97)":"scale(1)",transition:"transform 0.1s,border-color 0.1s",
         boxShadow:pressed?`0 0 0 3px rgba(60,176,67,0.15)`:"0 1px 4px rgba(0,0,0,0.06)"}}>
       {icon}
@@ -925,15 +990,18 @@ function HomePage({ user, onModal }) {
         display:"flex",alignItems:"center",justifyContent:"space-between",
         borderBottom:`1px solid ${C.border}`}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:40,height:40,borderRadius:"50%",
+          <div style={{width:40,height:40,borderRadius:10,
             background:`linear-gradient(135deg,${C.green},${C.greenDark})`,
             display:"flex",alignItems:"center",justifyContent:"center",
-            fontSize:17,color:"#fff",fontWeight:700,flexShrink:0}}>
-            {(user?.name||"Y")[0].toUpperCase()}
+            fontSize:11,color:"#fff",fontWeight:800,flexShrink:0,letterSpacing:0.5,
+            fontFamily:"monospace"}}>
+            ID
           </div>
           <div>
-            <div style={{fontSize:11,color:C.greyDark,lineHeight:1}}>Welcome back,</div>
-            <div style={{fontSize:16,fontWeight:700,color:C.text,lineHeight:1.2}}>{user?.name||"Observer"}</div>
+            <div style={{fontSize:10,color:C.greyDark,lineHeight:1,textTransform:"uppercase",letterSpacing:0.8}}>Field Observer</div>
+            <div style={{fontSize:15,fontWeight:800,color:C.text,lineHeight:1.2,fontFamily:"monospace",letterSpacing:0.5}}>
+              {user?.observerId || ("OBS-" + (user?.name||"OBS").slice(0,3).toUpperCase() + "-" + (user?.phone||"0000").slice(-4))}
+            </div>
           </div>
         </div>
         <div style={{textAlign:"right",lineHeight:1}}>
@@ -1164,33 +1232,37 @@ function HelplinePage() {
 
 // ── PROFILE PAGE ──────────────────────────────────────────────
 function ProfilePage({ user, onLogout }) {
+  const obsId = user?.observerId || ("OBS-" + (user?.name||"OBS").slice(0,3).toUpperCase() + "-" + (user?.phone||"0000").slice(-4));
   return (
     <div style={{padding:"20px 16px",paddingBottom:80}}>
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"24px 0 28px"}}>
-        <div style={{width:80,height:80,borderRadius:"50%",
+        <div style={{width:80,height:80,borderRadius:16,
           background:`linear-gradient(135deg,${C.green},${C.greenDark})`,
           display:"flex",alignItems:"center",justifyContent:"center",
-          fontSize:32,color:"#fff",fontWeight:700,marginBottom:12}}>
-          {(user?.name||"O")[0].toUpperCase()}
+          fontSize:13,color:"#fff",fontWeight:900,marginBottom:12,
+          fontFamily:"monospace",letterSpacing:1}}>
+          OBS
         </div>
-        <div style={{fontSize:20,fontWeight:700,color:C.text}}>{user?.name||"Observer"}</div>
-        <div style={{fontSize:13,color:C.greyDark,marginTop:4}}>{user?.role||"Field Observer"} · {user?.state||"Nigeria"}</div>
+        <div style={{fontSize:22,fontWeight:900,color:C.text,fontFamily:"monospace",letterSpacing:1}}>{obsId}</div>
+        <div style={{fontSize:12,color:C.greyDark,marginTop:4}}>{user?.role||"Field Observer"} · {user?.state||"Nigeria"}</div>
         <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
           <div style={{width:8,height:8,borderRadius:"50%",background:C.green}}/>
-          <span style={{fontSize:12,color:C.green,fontWeight:600}}>Active · INEC</span>
+          <span style={{fontSize:12,color:C.green,fontWeight:600}}>Active · INEC Accredited</span>
         </div>
       </div>
       <div style={{background:C.white,borderRadius:14,border:`1px solid ${C.border}`,overflow:"hidden",marginBottom:16}}>
         {[
-          ["Observer ID","OBS-"+((user?.name||"OBS").slice(0,3).toUpperCase())+"-001"],
-          ["Role",user?.role||"Field Observer"],
-          ["State",user?.state||"Not set"],
+          ["Observer ID", obsId],
+          ["Full Name",   user?.name||"—"],
+          ["Role",        user?.role||"Field Observer"],
+          ["State",       user?.state||"Not set"],
           ["Reports Filed","0"],
         ].map(([k,v],i)=>(
           <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"14px 16px",
-            borderBottom:i<3?`1px solid ${C.border}`:"none"}}>
+            borderBottom:i<4?`1px solid ${C.border}`:"none"}}>
             <span style={{fontSize:13,color:C.greyDark}}>{k}</span>
-            <span style={{fontSize:13,fontWeight:600,color:C.text}}>{v}</span>
+            <span style={{fontSize:13,fontWeight:600,color:k==="Observer ID"?C.green:C.text,
+              fontFamily:k==="Observer ID"?"monospace":undefined}}>{v}</span>
           </div>
         ))}
       </div>
@@ -1235,10 +1307,11 @@ function SOSFloatingButton({ onPress }) {
   return (
     <div style={{position:"fixed",bottom:72,left:"50%",transform:"translateX(-50%)",zIndex:100}}>
       <button
-        onMouseDown={()=>setPressed(true)} onMouseUp={()=>{setPressed(false);onPress();}}
-        onMouseLeave={()=>setPressed(false)}
-        onTouchStart={()=>setPressed(true)} onTouchEnd={()=>{setPressed(false);onPress();}}
-        style={{width:70,height:70,borderRadius:"50%",border:"none",
+        onClick={onPress}
+        onPointerDown={()=>setPressed(true)}
+        onPointerUp={()=>setPressed(false)}
+        onPointerLeave={()=>setPressed(false)}
+        style={{width:70,height:70,borderRadius:"50%",border:"none",touchAction:"manipulation",WebkitTapHighlightColor:"transparent",
           background:`radial-gradient(circle at 35% 35%, #4EE44E, ${C.green} 60%, ${C.greenDark})`,
           boxShadow:`0 0 0 5px #d0d0d0, 0 0 0 8px #b8b8b8, 0 6px 20px rgba(0,0,0,0.35)`,
           cursor:"pointer",transform:pressed?"scale(0.93)":"scale(1)",transition:"transform 0.1s",
@@ -1260,6 +1333,83 @@ async function submitReport(data) {
     headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(data) });
   return res.json();
 }
+
+// ── MEDIA UPLOAD TO DRIVE VIA GAS ────────────────────────────
+// ── IMAGE COMPRESSION ────────────────────────────────────────
+// Resizes to max 1280px and re-encodes as JPEG at 75% quality.
+// Typical phone photo: 4–8MB → ~250–500KB. Returns a compressed Blob.
+async function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1280;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+        else                { width  = Math.round(width  * MAX / height); height = MAX; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => resolve(blob || file), "image/jpeg", 0.75);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+// Converts a File/Blob to base64, POSTs to GAS uploadMedia action,
+// which saves it to Drive (public share) and returns the URL.
+// Images are compressed before upload. Videos are uploaded as-is (compressed at record time).
+async function uploadMediaToDrive(fileOrBlob, mimeType, filename) {
+  if (GAS_URL.includes("YOUR_GAS")) {
+    return "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/320px-Cat03.jpg";
+  }
+  try {
+    let toUpload = fileOrBlob;
+    let uploadMime = mimeType;
+    let uploadName = filename;
+
+    // Compress images before upload
+    if (mimeType.startsWith("image/")) {
+      console.log("Compressing image, original size:", fileOrBlob.size, "bytes");
+      toUpload = await compressImage(fileOrBlob);
+      uploadMime = "image/jpeg";
+      uploadName = filename.replace(/\.[^.]+$/, "") + ".jpg";
+      console.log("Compressed size:", toUpload.size, "bytes");
+    }
+
+    // Hard limit: ~10MB after compression (base64 will be ~13MB, within GAS limits)
+    const MAX_BYTES = 10 * 1024 * 1024;
+    if (toUpload.size > MAX_BYTES) {
+      console.warn("File still too large after compression:", toUpload.size, "bytes");
+      return "";
+    }
+
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(toUpload);
+    });
+
+    console.log("Uploading to Drive:", uploadName, uploadMime, "base64 length:", base64.length);
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action:"uploadMedia", base64, mimeType:uploadMime, filename:uploadName }),
+    });
+    const data = await res.json();
+    console.log("Drive upload response:", data);
+    return data.success ? data.url : "";
+  } catch (e) {
+    console.error("Media upload failed:", e);
+    return "";
+  }
+}
+
 
 // ── SPLASH ────────────────────────────────────────────────────
 function Splash({ onDone }) {
@@ -1516,7 +1666,7 @@ export default function ObserverApp() {
     setScreen("login");
   };
 
-  if (screen === "splash") return <Splash onDone={()=>{ setUser({ name:"Field Observer", phone:"08000000000", role:"Accredited Observer", state:"FCT", observerId:"OBS-001" }); setScreen("app"); }}/>;
+  if (screen === "splash") return <Splash onDone={()=>{ setUser({ name:"Demo Observer", phone:"08000000000", role:"Accredited Observer", state:"FCT", observerId:"OBS-FCT-8831" }); setScreen("app"); }}/>;
 
   return (
     <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",

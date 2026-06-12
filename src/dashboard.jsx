@@ -90,31 +90,145 @@ const STATE_LATLNG = {
   "Zamfara"     : [12.17,   6.66],
 };
 
-// ── MOCK DATA ────────────────────────────────────────────────
+// ── MOCK DATA — realistic 2027 Nigerian general election incidents ──
+// mediaRef: Google Drive share links (image/video). Dashboard renders them inline.
 const MOCK_INCIDENTS = [
-  { refId:"INC-001", reportType:"IMAGE",   state:"Lagos",   lga:"Ikeja LGA",      severity:"critical", description:"Ballot box snatching witnessed at polling unit.",         reporter:"Chukwudi A.", timestamp:new Date(Date.now()-5*60000).toISOString(),  status:"pending", lat:6.54,  lng:3.34 },
-  { refId:"INC-002", reportType:"VIDEO",   state:"Borno",   lga:"Maiduguri",      severity:"critical", description:"Violence outbreak near Maiduguri Central polling unit.",   reporter:"Fatima B.",   timestamp:new Date(Date.now()-12*60000).toISOString(), status:"pending", lat:11.84, lng:13.16 },
-  { refId:"INC-003", reportType:"AUDIO",   state:"Kano",    lga:"Kano Municipal", severity:"moderate", description:"Voter intimidation by party agents at polling gate.",        reporter:"Musa D.",     timestamp:new Date(Date.now()-18*60000).toISOString(), status:"pending", lat:12.00, lng:8.52 },
-  { refId:"INC-004", reportType:"TEXT",    state:"FCT",     lga:"Abuja",          severity:"moderate", description:"Technical issues with card readers at 3 polling units.",    reporter:"Ngozi O.",    timestamp:new Date(Date.now()-25*60000).toISOString(), status:"pending", lat:9.06,  lng:7.49 },
-  { refId:"INC-005", reportType:"TEXT",    state:"Delta",   lga:"Warri",          severity:"moderate", description:"Protest blocking road to polling unit.",                    reporter:"Emeka U.",    timestamp:new Date(Date.now()-32*60000).toISOString(), status:"pending", lat:5.52,  lng:5.75 },
-  { refId:"INC-006", reportType:"IMAGE",   state:"Rivers",  lga:"Port Harcourt",  severity:"moderate", description:"Irregularities in voter register at Ward 4.",               reporter:"Amina K.",    timestamp:new Date(Date.now()-45*60000).toISOString(), status:"pending", lat:4.78,  lng:7.01 },
-  { refId:"INC-007", reportType:"AUDIO",   state:"Rivers",  lga:"Port Harcourt",  severity:"moderate", description:"Irregularities — ballot papers found outside polling unit.", reporter:"Tunde L.",    timestamp:new Date(Date.now()-45*60000).toISOString(), status:"pending", lat:4.80,  lng:7.02 },
-  { refId:"INC-008", reportType:"LOCATION",state:"Kaduna",  lga:"Kaduna North",   severity:"low",      description:"Observer location shared — situation calm.",                reporter:"Grace I.",    timestamp:new Date(Date.now()-60*60000).toISOString(), status:"pending", lat:10.52, lng:7.44 },
-  { refId:"INC-009", reportType:"SOS",     state:"Kano",    lga:"Kano Municipal", severity:"critical", description:"SOS — emergency situation at polling unit.",                reporter:"Ibrahim S.",  timestamp:new Date(Date.now()-8*60000).toISOString(),  status:"pending", lat:12.01, lng:8.54 },
+  {
+    refId:"INC-831", reportType:"IMAGE", state:"Lagos", lga:"Alimosho LGA",
+    severity:"critical",
+    description:"Armed thugs attempted to snatch ballot box at PU 007, Ayobo Ward. INEC officials fled. Voting suspended. Police contacted but yet to arrive.",
+    reporter:"Adaeze Okonkwo (OBS-ADA-8831)", timestamp:new Date(Date.now()-4*60000).toISOString(),
+    status:"pending", lat:6.59, lng:3.25,
+    mediaRef:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/320px-Cat03.jpg",
+  },
+  {
+    refId:"INC-744", reportType:"SOS", state:"Kano", lga:"Nassarawa LGA",
+    severity:"critical",
+    description:"SOS — Observer Malam Garba Musa reports he is trapped inside polling unit by a mob. Windows smashed. Requesting immediate police intervention. Coords attached.",
+    reporter:"Garba Musa (OBS-GAR-7744)", timestamp:new Date(Date.now()-7*60000).toISOString(),
+    status:"pending", lat:12.01, lng:8.54,
+    mediaRef:"",
+  },
+  {
+    refId:"INC-692", reportType:"VIDEO", state:"Rivers", lga:"Port Harcourt LGA",
+    severity:"critical",
+    description:"Video evidence of pre-marked ballot papers being distributed to voters at St. Joseph Primary School polling unit, D/Line Ward. Approx 60 ballots visible.",
+    reporter:"Chidinma Eze (OBS-CHI-6692)", timestamp:new Date(Date.now()-11*60000).toISOString(),
+    status:"pending", lat:4.79, lng:7.02,
+    mediaRef:"https://www.w3schools.com/html/mov_bbb.mp4",
+  },
+  {
+    refId:"INC-615", reportType:"IMAGE", state:"Borno", lga:"Maiduguri Municipal",
+    severity:"critical",
+    description:"Polling unit burnt down at Government Science School, Baga Road before accreditation could commence. Security forces on scene. Over 400 registered voters disenfranchised.",
+    reporter:"Fatima Bulama (OBS-FAT-6615)", timestamp:new Date(Date.now()-15*60000).toISOString(),
+    status:"pending", lat:11.83, lng:13.15,
+    mediaRef:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png",
+  },
+  {
+    refId:"INC-588", reportType:"AUDIO", state:"Kano", lga:"Kano Municipal LGA",
+    severity:"moderate",
+    description:"Audio report of party agents openly directing voters on how to vote inside the booth at PU 012, Fagge Ward. INEC presiding officer appears aware but not acting.",
+    reporter:"Usman Yusuf (OBS-USM-5588)", timestamp:new Date(Date.now()-19*60000).toISOString(),
+    status:"pending", lat:12.00, lng:8.52,
+    mediaRef:"",
+  },
+  {
+    refId:"INC-541", reportType:"TEXT", state:"FCT", lga:"Bwari Area Council",
+    severity:"moderate",
+    description:"Card reader malfunctions at 4 consecutive polling units in Dutse Ward. INEC technician called but ETR unknown. Approx 230 voters waiting in queue since 8:30am.",
+    reporter:"Ngozi Obiechina (OBS-NGO-5541)", timestamp:new Date(Date.now()-24*60000).toISOString(),
+    status:"pending", lat:9.08, lng:7.35,
+    mediaRef:"",
+  },
+  {
+    refId:"INC-503", reportType:"IMAGE", state:"Kaduna", lga:"Kaduna North LGA",
+    severity:"moderate",
+    description:"Underage individuals observed in voter queue at PU 018, Kawo Ward. Estimated ages 14–16. Image attached. INEC officials notified verbally. No action taken yet.",
+    reporter:"Grace Ishaya (OBS-GRA-5503)", timestamp:new Date(Date.now()-31*60000).toISOString(),
+    status:"pending", lat:10.54, lng:7.45,
+    mediaRef:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Gatto_europeo4.jpg/320px-Gatto_europeo4.jpg",
+  },
+  {
+    refId:"INC-477", reportType:"TEXT", state:"Delta", lga:"Warri South LGA",
+    severity:"moderate",
+    description:"Protest by supporters of APC candidate blocking access road to St. Andrews Secondary School polling unit, Edjeba Ward. Road blocked with burning tyres. Voters unable to pass.",
+    reporter:"Emeka Uchenna (OBS-EME-4477)", timestamp:new Date(Date.now()-38*60000).toISOString(),
+    status:"pending", lat:5.52, lng:5.76,
+    mediaRef:"",
+  },
+  {
+    refId:"INC-449", reportType:"VIDEO", state:"Anambra", lga:"Awka South LGA",
+    severity:"moderate",
+    description:"Video shows a vehicle unloading what appears to be ballot materials outside an uncertified premises near PU 022, Amawbia Ward, approximately 1.2km from designated collation centre.",
+    reporter:"Obiageli Nwosu (OBS-OBI-4449)", timestamp:new Date(Date.now()-43*60000).toISOString(),
+    status:"pending", lat:6.21, lng:7.07,
+    mediaRef:"https://www.w3schools.com/html/mov_bbb.mp4",
+  },
+  {
+    refId:"INC-412", reportType:"IMAGE", state:"Osun", lga:"Osogbo LGA",
+    severity:"moderate",
+    description:"Result sheet (Form EC8A) partially completed and left unattended on desk at PU 004, Oke-Fia Ward. Presiding officer absent from table for 20+ minutes. Photo evidence attached.",
+    reporter:"Tolu Adeyemi (OBS-TOL-4412)", timestamp:new Date(Date.now()-52*60000).toISOString(),
+    status:"pending", lat:7.77, lng:4.56,
+    mediaRef:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/320px-Cat03.jpg",
+  },
+  {
+    refId:"INC-388", reportType:"AUDIO", state:"Akwa Ibom", lga:"Uyo LGA",
+    severity:"moderate",
+    description:"Audio recording of individuals offering cash payments (reported as ₦3,000 per voter) outside PU 031, Itam Ward. Exchange happening approximately 80m from polling unit entrance.",
+    reporter:"Patience Udoh (OBS-PAT-3388)", timestamp:new Date(Date.now()-58*60000).toISOString(),
+    status:"pending", lat:5.03, lng:7.91,
+    mediaRef:"",
+  },
+  {
+    refId:"INC-355", reportType:"LOCATION", state:"Plateau", lga:"Jos North LGA",
+    severity:"low",
+    description:"Observer location check-in. Situation calm at PU 009, Tudun Wada Ward. Accreditation proceeding normally. Queue orderly. INEC staff present and professional. No incidents.",
+    reporter:"Danjuma Pam (OBS-DAN-3355)", timestamp:new Date(Date.now()-67*60000).toISOString(),
+    status:"resolved", lat:9.90, lng:8.86,
+    mediaRef:"",
+  },
+  {
+    refId:"INC-327", reportType:"TEXT", state:"Oyo", lga:"Ibadan North LGA",
+    severity:"low",
+    description:"Minor delay at PU 003, Agodi Ward — polling commenced 52 minutes late due to late arrival of electoral materials. Situation now normalised; accreditation ongoing.",
+    reporter:"Biodun Adeleke (OBS-BIO-3327)", timestamp:new Date(Date.now()-74*60000).toISOString(),
+    status:"resolved", lat:7.40, lng:3.90,
+    mediaRef:"",
+  },
+  {
+    refId:"INC-298", reportType:"LOCATION", state:"Enugu", lga:"Enugu North LGA",
+    severity:"low",
+    description:"Observer check-in from PU 017, Independence Layout. Voting underway without incident. High turnout — queue extends approximately 200m. INEC officials managing flow well.",
+    reporter:"Nkechi Eze (OBS-NKE-2298)", timestamp:new Date(Date.now()-83*60000).toISOString(),
+    status:"resolved", lat:6.45, lng:7.50,
+    mediaRef:"",
+  },
+  {
+    refId:"INC-271", reportType:"TEXT", state:"Edo", lga:"Oredo LGA",
+    severity:"low",
+    description:"PU 011, Ring Road Ward — one polling booth collapsed due to heavy rain. INEC quickly relocated voters to adjacent structure. Brief disruption of approx 15 minutes. Voting resumed.",
+    reporter:"Osaze Idehen (OBS-OSA-2271)", timestamp:new Date(Date.now()-91*60000).toISOString(),
+    status:"resolved", lat:6.34, lng:5.63,
+    mediaRef:"",
+  },
 ];
 
 // ── ALERT TICKER ─────────────────────────────────────────────
 const TICKER_ALERTS = [
-  "🔴 SOS activated · Kano Municipal — 3 mins ago",
-  "🟠 Voter intimidation reported · Lagos Mainland",
-  "🔴 Violence outbreak · Maiduguri Central polling unit",
-  "🟠 Ballot irregularities · Rivers State, Ward 4",
-  "🟢 Observer checked in · FCT Abuja — all clear",
-  "🔴 Ballot box snatching · Ikeja LGA — critical",
-  "🟠 Card reader failure · 3 units in Kaduna North",
-  "🟢 Location ping received · Plateau State",
-  "🔴 SOS — emergency at Kano Municipal polling unit",
-  "🟠 Protest blocking road · Warri, Delta State",
+  "🔴 SOS — observer trapped by mob · Nassarawa LGA, Kano — 7 mins ago",
+  "🔴 Ballot box snatching attempt · Alimosho LGA, Lagos — image filed",
+  "🔴 Polling unit set ablaze · Maiduguri Municipal, Borno — critical",
+  "🔴 Pre-marked ballots distributed · D/Line Ward, Port Harcourt — video evidence",
+  "🟠 Party agents directing voters inside booth · Fagge Ward, Kano",
+  "🟠 Card readers down at 4 units · Bwari, FCT — 230 voters waiting",
+  "🟠 Access road blocked · Warri South LGA — burning tyres",
+  "🟠 Underage voters observed in queue · Kawo Ward, Kaduna — image attached",
+  "🟠 Result sheet left unattended · Oke-Fia Ward, Osun — photo evidence",
+  "🟠 Suspected vote buying reported · Itam Ward, Uyo — audio filed",
+  "🟢 Observer check-in · Jos North LGA — situation calm",
+  "🟢 Voting underway normally · Independence Layout, Enugu — high turnout",
 ];
 
 function AlertTicker() {
@@ -168,9 +282,13 @@ function incidentTitle(inc) {
 }
 
 function reportCount(inc) {
-  const map = { "INC-001":1250,"INC-002":1450,"INC-003":890,"INC-004":650,
-    "INC-005":560,"INC-006":420,"INC-007":420,"INC-008":80,"INC-009":1800 };
-  return map[inc.refId] || Math.floor(Math.abs(inc.refId?.charCodeAt(4)||1) * 137 + 50);
+  const map = {
+    "INC-831":1420, "INC-744":1850, "INC-692":1380, "INC-615":1650,
+    "INC-588":760,  "INC-541":580,  "INC-503":490,  "INC-477":530,
+    "INC-449":620,  "INC-412":440,  "INC-388":380,  "INC-355":90,
+    "INC-327":110,  "INC-298":130,  "INC-271":95,
+  };
+  return map[inc.refId] || Math.floor(Math.abs((inc.refId?.charCodeAt(4)||1) * 137) + 50);
 }
 
 // ── SEVERITY BADGE ───────────────────────────────────────────
@@ -186,6 +304,62 @@ function SeverityBadge({ sev }) {
       padding:"3px 9px",borderRadius:5,whiteSpace:"nowrap",flexShrink:0}}>
       {label}
     </span>
+  );
+}
+
+// ── MEDIA LIGHTBOX ────────────────────────────────────────────
+function MediaLightbox({ src, isVideo, onClose }) {
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:9999,
+      background:"rgba(0,0,0,0.92)",display:"flex",flexDirection:"column",
+      alignItems:"center",justifyContent:"center",padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:780,
+        display:"flex",flexDirection:"column",gap:0}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+          padding:"8px 12px",background:"#111827",borderRadius:"12px 12px 0 0"}}>
+          <span style={{fontSize:11,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:0.8}}>
+            {isVideo ? "▶ Video Evidence" : "🖼 Image Evidence"}
+          </span>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#9CA3AF",
+            fontSize:20,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>×</button>
+        </div>
+        {isVideo
+          ? <video src={src} controls autoPlay style={{width:"100%",maxHeight:"75vh",
+              display:"block",background:"#000",borderRadius:"0 0 12px 12px"}}/>
+          : <img src={src} alt="Evidence" style={{width:"100%",maxHeight:"75vh",
+              objectFit:"contain",display:"block",background:"#000",borderRadius:"0 0 12px 12px"}}/>
+        }
+      </div>
+      <div style={{marginTop:10,fontSize:12,color:"#6B7280"}}>Click outside to close</div>
+    </div>
+  );
+}
+
+// ── MEDIA VIEWER ─────────────────────────────────────────────
+function MediaViewer({ mediaRef, reportType }) {
+  const [lightbox, setLightbox] = useState(false);
+  if (!mediaRef || !mediaRef.startsWith("http")) return null;
+  const isVideo = reportType === "VIDEO" || /\.(mp4|webm|mov|avi)(\?|$)/i.test(mediaRef);
+  return (
+    <>
+      <div style={{marginBottom:10,borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,background:"#000",cursor:"pointer"}}
+        onClick={()=>setLightbox(true)}>
+        {isVideo
+          ? <video src={mediaRef} style={{width:"100%",maxHeight:220,display:"block",background:"#000",pointerEvents:"none"}}/>
+          : <img src={mediaRef} alt="Evidence" style={{width:"100%",maxHeight:220,objectFit:"cover",display:"block"}}
+              onError={e=>{e.target.style.display="none";}}/>
+        }
+        <div style={{padding:"5px 10px",background:"#111827",display:"flex",alignItems:"center",gap:6}}>
+          <span style={{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:0.8}}>
+            {isVideo ? "▶ Video Evidence" : "🖼 Image Evidence"}
+          </span>
+          <span style={{marginLeft:"auto",fontSize:10,color:C.green,fontWeight:600}}>
+            {isVideo ? "▶ Play" : "🔍 Expand"}
+          </span>
+        </div>
+      </div>
+      {lightbox && <MediaLightbox src={mediaRef} isVideo={isVideo} onClose={()=>setLightbox(false)}/>}
+    </>
   );
 }
 
@@ -223,6 +397,7 @@ function IncidentPopup({ state, incidents, onClose }) {
                 background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px"}}>
                 {inc.description || "No additional details provided."}
               </div>
+              <MediaViewer mediaRef={inc.mediaRef} reportType={inc.reportType}/>
               <div style={{display:"flex",gap:16,fontSize:12,color:C.sub,flexWrap:"wrap"}}>
                 <span>🕐 {timeAgo(inc.timestamp)}</span>
                 <span>👤 {inc.reporter}</span>
@@ -290,6 +465,7 @@ function AllReportsModal({ incidents, onClose }) {
                 <span style={{fontSize:13,color:C.sub}}>{inc.state} · {inc.lga}</span>
               </div>
               <div style={{fontSize:13,color:C.text,lineHeight:1.5,marginBottom:4}}>{inc.description}</div>
+              <MediaViewer mediaRef={inc.mediaRef} reportType={inc.reportType}/>
               <div style={{display:"flex",gap:16,fontSize:12,color:C.sub,flexWrap:"wrap"}}>
                 <span>🕐 {timeAgo(inc.timestamp)}</span>
                 <span>👤 {inc.reporter}</span>
@@ -602,7 +778,7 @@ async function fetchIncidents() {
 // ── DASHBOARD ROOT ────────────────────────────────────────────
 export default function Dashboard() {
   const [incidents,  setIncidents]  = useState(MOCK_INCIDENTS);
-  const [summary,    setSummary]    = useState({ total:9, critical:3, moderate:5, low:1, states:36 });
+  const [summary,    setSummary]    = useState({ total:15, critical:4, moderate:7, low:4, states:36 });
   const [loading,    setLoading]    = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [popup,      setPopup]      = useState(null);   // { state, incidents }

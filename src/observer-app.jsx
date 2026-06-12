@@ -1019,7 +1019,7 @@ function ContactsPage() {
   return (
     <div style={{padding:"20px 16px",paddingBottom:80}}>
       <div style={{fontSize:18,fontWeight:700,color:C.text,marginBottom:4}}>Contacts</div>
-      <div style={{fontSize:13,color:C.greyDark,marginBottom:20}}>Your base contact & ESI Hub team directory</div>
+      <div style={{fontSize:13,color:C.greyDark,marginBottom:20}}>Your base contact & INEC team directory</div>
 
       {/* ── Personal Base Contact ── */}
       <div style={{marginBottom:18}}>
@@ -1103,7 +1103,7 @@ function ContactsPage() {
 
       {/* ── ESI Team ── */}
       <div style={{fontSize:11,fontWeight:700,color:C.greyDark,textTransform:"uppercase",
-        letterSpacing:1,marginBottom:8}}>ESI Hub Team</div>
+        letterSpacing:1,marginBottom:8}}>INEC Team</div>
       {teamContacts.map((c,i)=>(
         <div key={i} style={{display:"flex",alignItems:"center",gap:14,background:C.white,
           border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px",marginBottom:10,
@@ -1176,7 +1176,7 @@ function ProfilePage({ user, onLogout }) {
         <div style={{fontSize:13,color:C.greyDark,marginTop:4}}>{user?.role||"Field Observer"} · {user?.state||"Nigeria"}</div>
         <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
           <div style={{width:8,height:8,borderRadius:"50%",background:C.green}}/>
-          <span style={{fontSize:12,color:C.green,fontWeight:600}}>Active · ESI Hub</span>
+          <span style={{fontSize:12,color:C.green,fontWeight:600}}>Active · INEC</span>
         </div>
       </div>
       <div style={{background:C.white,borderRadius:14,border:`1px solid ${C.border}`,overflow:"hidden",marginBottom:16}}>
@@ -1493,7 +1493,7 @@ function LoginScreen({ onLogin }) {
       </div>
 
       <div style={{padding:"0 24px 32px",textAlign:"center",fontSize:11,color:C.grey}}>
-        © 2026 RescueTap Ltd. · ESI Hub v2.0
+        © 2026 RescueTap Ltd. · EMS
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>

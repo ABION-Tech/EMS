@@ -537,6 +537,8 @@ function LeafletIncidentMap({ incidents, onMarkerClick }) {
   const mapRef = useRef(null);
   const leafletMap = useRef(null);
   const markersRef = useRef([]);
+  const tileLayerRef = useRef(null);
+  const [satellite, setSatellite] = useState(false);
 
   const buildMap = useCallback(() => {
     if (!window.L || !mapRef.current || leafletMap.current) return;
@@ -546,9 +548,9 @@ function LeafletIncidentMap({ incidents, onMarkerClick }) {
       attributionControl: false, zoomControl: true,
     });
 
-    // OpenStreetMap tile layer (free, no API key)
-    window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 18, attribution: "© OpenStreetMap contributors"
+    // OpenStreetMap street tiles (default)
+    tileLayerRef.current = window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: "© OpenStreetMap"
     }).addTo(map);
 
     // Add small attribution in corner
@@ -641,6 +643,17 @@ function LeafletIncidentMap({ incidents, onMarkerClick }) {
     };
   }, []);
 
+  // Swap tile layer when satellite toggle changes
+  useEffect(() => {
+    if (!leafletMap.current || !window.L) return;
+    if (tileLayerRef.current) { tileLayerRef.current.remove(); tileLayerRef.current = null; }
+    const url = satellite
+      ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+    tileLayerRef.current = window.L.tileLayer(url, { maxZoom: 19 }).addTo(leafletMap.current);
+    tileLayerRef.current.bringToBack();
+  }, [satellite]);
+
   // Update markers when incidents change
   useEffect(() => {
     if (leafletMap.current && window.L) addMarkers(leafletMap.current, incidents);
@@ -658,6 +671,15 @@ function LeafletIncidentMap({ incidents, onMarkerClick }) {
         .leaflet-tooltip-top.ems-tooltip::before { border-top-color:#111827 !important; display:block !important; }
       `}</style>
       <div ref={mapRef} style={{width:"100%",height:"100%"}}/>
+      {/* Map type toggle */}
+      <button onClick={()=>setSatellite(s=>!s)}
+        style={{position:"absolute",top:10,right:10,zIndex:400,
+          background:"rgba(255,255,255,0.92)",backdropFilter:"blur(4px)",
+          border:"1px solid #ddd",borderRadius:8,padding:"5px 10px",
+          fontSize:11,fontWeight:700,cursor:"pointer",color:"#111827",
+          boxShadow:"0 1px 4px rgba(0,0,0,0.15)"}}>
+        {satellite ? "🗺 Street" : "🛰 Satellite"}
+      </button>
     </>
   );
 }
@@ -756,30 +778,48 @@ function IncidentRow({ inc, onClick }) {
 }
 
 // ── API FETCH ─────────────────────────────────────────────────
-async function fetchIncidents() {
-  if (GAS_URL.includes("YOUR_GAS")) {
-    await new Promise(r => setTimeout(r, 600));
-    return {
-      success: true,
-      incidents: MOCK_INCIDENTS,
-      summary: {
-        total: MOCK_INCIDENTS.length,
-        critical: MOCK_INCIDENTS.filter(i=>i.severity==="critical").length,
-        moderate: MOCK_INCIDENTS.filter(i=>i.severity==="moderate").length,
-        low: MOCK_INCIDENTS.filter(i=>i.severity==="low").length,
-        states: 36,
-      }
-    };
-  }
-  const res = await fetch(GAS_URL + "?action=get");
-  return res.json();
+async function fetchIncidents(signal) {
+  const res = await fetch(GAS_URL + "?action=get", { signal });
+  if (!res.ok) throw new Error(`GAS returned HTTP ${res.status}`);
+  const text = await res.text();
+  // GAS sometimes wraps response — strip any leading junk before {
+  const clean = text.slice(text.indexOf("{"));
+  if (!clean) throw new Error("GAS response was not JSON");
+  const data = JSON.parse(clean);
+  if (!data.success) throw new Error(data.error || "GAS returned success:false");
+
+  // Normalise field names — GAS doGet returns camelCase already,
+  // but guard against any sheet rows that come back with empty keys
+  const incidents = (data.incidents || []).map(r => ({
+    timestamp  : r.timestamp   || "",
+    refId      : r.refId       || "",
+    reporter   : r.reporter    || "Unknown",
+    reportType : (r.reportType || "TEXT").toUpperCase(),
+    state      : r.state       || "",
+    lga        : r.lga         || "",
+    severity   : (r.severity   || "low").toLowerCase(),
+    description: r.description || "",
+    lat        : parseFloat(r.lat) || 0,
+    lng        : parseFloat(r.lng) || 0,
+    status     : r.status      || "pending",
+    mediaRef   : r.mediaRef    || "",
+  })).filter(r => r.state); // drop empty header rows if any
+
+  return { success: true, incidents, summary: data.summary };
 }
 
 // ── DASHBOARD ROOT ────────────────────────────────────────────
 export default function Dashboard() {
   const [incidents,  setIncidents]  = useState(MOCK_INCIDENTS);
-  const [summary,    setSummary]    = useState({ total:15, critical:4, moderate:7, low:4, states:36 });
-  const [loading,    setLoading]    = useState(false);
+  const [summary,    setSummary]    = useState({
+    total   : MOCK_INCIDENTS.length,
+    critical: MOCK_INCIDENTS.filter(i=>i.severity==="critical").length,
+    moderate: MOCK_INCIDENTS.filter(i=>i.severity==="moderate").length,
+    low     : MOCK_INCIDENTS.filter(i=>i.severity==="low").length,
+    states  : 36,
+  });
+  const [loading,    setLoading]    = useState(true);
+  const [fetchErr,   setFetchErr]   = useState("");
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [popup,      setPopup]      = useState(null);   // { state, incidents }
   const [mapFullscreen, setMapFullscreen] = useState(false);
@@ -789,20 +829,34 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchIncidents();
-      if (data.success) {
+      // 12s timeout — GAS can be slow on cold start
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      const data = await fetchIncidents(controller.signal);
+      clearTimeout(timer);
+      // Only replace mock data if we actually got real rows back
+      if (data.incidents.length > 0) {
         setIncidents(data.incidents);
-        setSummary(data.summary);
-        setLastUpdate(new Date());
+        setSummary(data.summary || null);
       }
-    } catch(e) { console.error(e); }
-    setLoading(false);
+      setLastUpdate(new Date());
+      setFetchErr("");
+    } catch(e) {
+      const msg = e.name === "AbortError"
+        ? "Live data timed out — showing last known data"
+        : `Could not reach live data: ${e.message}`;
+      console.warn("load failed:", msg);
+      setFetchErr(msg);
+      // incidents stay as-is (mock or previously loaded live data)
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     load();
     const t = setInterval(load, 30000);
-    return () => clearInterval(t);
+    return () => { clearInterval(t); };
   }, [load]);
 
   const handleMarkerClick = (state, incs) => setPopup({ state, incs });
@@ -828,6 +882,7 @@ export default function Dashboard() {
         }
       `}</style>
 
+      {/* ── Splash Screen ── */}
       {/* ── Top Bar ── */}
       <div style={{flexShrink:0,background:C.white,borderBottom:`1px solid ${C.border}`,
         padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -839,6 +894,11 @@ export default function Dashboard() {
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           {loading && <span style={{fontSize:12,color:C.sub}}>Refreshing…</span>}
+          {!loading && fetchErr && (
+            <span style={{fontSize:11,color:"#EF4444",background:"#FEF2F2",border:"1px solid #FECACA",
+              borderRadius:6,padding:"3px 8px",maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}
+              title={fetchErr}>⚠ {fetchErr}</span>
+          )}
           <button onClick={load} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,
             border:`1px solid ${C.border}`,background:C.white,color:C.text,cursor:"pointer"}}>
             ↻ Refresh
@@ -862,7 +922,7 @@ export default function Dashboard() {
         <div style={{display:"flex",gap:14,marginBottom:18,flexShrink:0}}>
           <StatCard label="Number of Occurrences" value={totalReports.toLocaleString()}
             sub="+12% from last week" color={C.moderate} icon={<AlertTriangleIcon color={C.moderate}/>}/>
-          <StatCard label="Location of Election"  value={`${summary.states} States`}
+          <StatCard label="Location of Election"  value={`${summary?.states ?? new Set(incidents.map(i=>i.state).filter(Boolean)).size} States`}
             sub="774 LGAs monitored" color={C.green} icon={<MapPinStatIcon color={C.green}/>}/>
           <StatCard label="Incident Reports" value={incidents.length.toLocaleString()}
             sub={`Updated ${timeAgo(lastUpdate.toISOString())}`} color="#3B82F6" icon={<DocStatIcon color="#3B82F6"/>}/>
@@ -908,9 +968,6 @@ export default function Dashboard() {
             <div style={{position:"relative",zIndex:0,borderRadius:8,overflow:"hidden",flex:1,minHeight:0,border:`1px solid ${C.border}`}}>
               <LeafletIncidentMap incidents={incidents} onMarkerClick={handleMarkerClick}/>
             </div>
-            <p style={{fontSize:11,color:C.sub,marginTop:8,textAlign:"center",flexShrink:0}}>
-              Click any marker to view incident details · Powered by OpenStreetMap (no API key required)
-            </p>
           </div>
 
           {/* Fullscreen map overlay */}

@@ -448,7 +448,6 @@ function VideoModal({ user, onClose, onSubmit }) {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errMsg, setErrMsg] = useState("");
-  const [videoSizeWarn, setVideoSizeWarn] = useState("");
   const [useCamera, setUseCamera] = useState(false);
   const timerRef = useRef(null);
   const mrRef = useRef(null);
@@ -509,13 +508,6 @@ function VideoModal({ user, onClose, onSubmit }) {
   const onFileVideo = e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Warn if picked file exceeds 50MB — browser can't re-encode video, record live instead
-    const WARN_BYTES = 50 * 1024 * 1024;
-    if (file.size > WARN_BYTES) {
-      setVideoSizeWarn(`This video is ${(file.size / (1024*1024)).toFixed(1)} MB — it may be too large to upload. For best results, use live recording (≤ ~7 MB/min).`);
-    } else {
-      setVideoSizeWarn("");
-    }
     setVideoBlob(file);
     setVideoURL(URL.createObjectURL(file));
     setSecs(0);
@@ -540,7 +532,6 @@ function VideoModal({ user, onClose, onSubmit }) {
   return (
     <Modal title="Video Report" onClose={onClose}>
       {errMsg && <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#EF4444",marginBottom:12}}>{errMsg}</div>}
-      {videoSizeWarn && <div style={{background:"#FFFBEB",border:"1px solid #FCD34D",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#92400E",marginBottom:12}}>⚠️ {videoSizeWarn}</div>}
       {/* Hidden file input */}
       <input ref={fileRef} type="file" accept="video/*" capture="environment"
         style={{display:"none"}} onChange={onFileVideo}/>
@@ -588,7 +579,7 @@ function VideoModal({ user, onClose, onSubmit }) {
       {done && (
         <>
           <div style={{display:"flex",gap:8,marginBottom:4}}>
-            <button onClick={()=>{setDone(false);setVideoURL(null);setVideoBlob(null);setSecs(0);setVideoSizeWarn("");chunksRef.current=[];}}
+            <button onClick={()=>{setDone(false);setVideoURL(null);setVideoBlob(null);setSecs(0);chunksRef.current=[];}}
               style={{...submitBtnStyle,marginTop:0,flex:1,fontSize:12,
                 background:"#F9FAFB",color:C.text,border:`1.5px solid ${C.border}`,boxShadow:"none"}}>
               🔄 Re-record
@@ -782,15 +773,26 @@ function SOSModal({ user, onClose, onSubmit }) {
 
   const triggerSOS = async () => {
     setPhase("sending");
-    navigator.geolocation?.getCurrentPosition(
-      p => setCoords({ lat: p.coords.latitude.toFixed(5), lng: p.coords.longitude.toFixed(5) }),
-      () => setCoords({ lat: "6.52438", lng: "3.37921" })
-    );
-    await new Promise(r => setTimeout(r, 1800));
+    // Await GPS before submitting so coords are never empty
+    const gps = await new Promise(resolve => {
+      if (!navigator.geolocation) { resolve({ lat: "", lng: "" }); return; }
+      navigator.geolocation.getCurrentPosition(
+        p => resolve({ lat: p.coords.latitude.toFixed(5), lng: p.coords.longitude.toFixed(5) }),
+        () => resolve({ lat: "", lng: "" }),
+        { timeout: 5000, enableHighAccuracy: true }
+      );
+    });
+    setCoords(gps);
     await onSubmit({
-      reporter: user?.name || "Observer", reportType:"SOS", state:"", lga:"",
-      severity:"critical", description:"EMERGENCY SOS — location broadcast",
-      lat: coords?.lat || "", lng: coords?.lng || "", mediaRef: refId,
+      reporter   : user?.name || "Field Observer",
+      reportType : "SOS",
+      state      : user?.state || "",
+      lga        : "",
+      severity   : "critical",
+      description: "EMERGENCY SOS — observer location broadcast",
+      lat        : gps.lat,
+      lng        : gps.lng,
+      mediaRef   : refId,
     });
     setPhase("sent");
   };
@@ -1061,9 +1063,6 @@ function HomePage({ user, onModal }) {
         <div style={{flex:1,minHeight:0,position:"relative",zIndex:0}}>
           <TrackLocationMap expanded={mapExpanded} onCollapse={()=>setMapExpanded(false)}/>
         </div>
-        <p style={{flexShrink:0,fontSize:10,color:C.grey,marginTop:4,textAlign:"center"}}>
-          Live map · OpenStreetMap
-        </p>
       </div>
     </div>
   );
@@ -1318,20 +1317,21 @@ function SOSFloatingButton({ onPress }) {
           display:"flex",alignItems:"center",justifyContent:"center"}}>
         <WarningIcon/>
       </button>
-      <div style={{fontSize:9,fontWeight:700,color:C.greyDark,textAlign:"center",marginTop:3,letterSpacing:0.5}}>SOS</div>
     </div>
   );
 }
 
 // ── API CALL ──────────────────────────────────────────────────
 async function submitReport(data) {
-  if (GAS_URL.includes("YOUR_GAS")) {
-    await new Promise(r => setTimeout(r, 900));
-    return { success: true, refId: "INC-" + Date.now().toString().slice(-6) };
-  }
-  const res = await fetch(GAS_URL, { method:"POST",
-    headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(data) });
-  return res.json();
+  const res = await fetch(GAS_URL, {
+    method : "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body   : JSON.stringify({ action: "submit", ...data }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  const clean = text.slice(text.indexOf("{"));
+  return JSON.parse(clean);
 }
 
 // ── MEDIA UPLOAD TO DRIVE VIA GAS ────────────────────────────
@@ -1364,9 +1364,7 @@ async function compressImage(file) {
 // which saves it to Drive (public share) and returns the URL.
 // Images are compressed before upload. Videos are uploaded as-is (compressed at record time).
 async function uploadMediaToDrive(fileOrBlob, mimeType, filename) {
-  if (GAS_URL.includes("YOUR_GAS")) {
-    return "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/320px-Cat03.jpg";
-  }
+  // Real GAS URL — upload to Drive
   try {
     let toUpload = fileOrBlob;
     let uploadMime = mimeType;
@@ -1666,7 +1664,7 @@ export default function ObserverApp() {
     setScreen("login");
   };
 
-  if (screen === "splash") return <Splash onDone={()=>{ setUser({ name:"Demo Observer", phone:"08000000000", role:"Accredited Observer", state:"FCT", observerId:"OBS-FCT-8831" }); setScreen("app"); }}/>;
+  if (screen === "splash") return <Splash onDone={()=>{ setUser({ name:"Field Observer", phone:"", role:"Accredited Observer", state:"FCT", observerId:"OBS-FCT-0001" }); setScreen("app"); }}/>;
 
   return (
     <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",

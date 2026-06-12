@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── CONFIG ─────────────────────────────────────────────────────
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzwxOEoAWwo6tuNmpif6xmbPUSHtWKJ9JTBy4I9TPHm_btSkLaLrvOutWWRz_qj32g57w/exec"; // ← paste deployed GAS URL
+const GAS_URL = "https://script.google.com/macros/s/AKfycbx6RU2hcrNv9ig33c1tp-OGvw1-Wx_BkwSjfzm1_8zvGeKRcQB82VbYYgJOfJ3l3l1LeQ/exec"; // ← paste deployed GAS URL
 
 // ── COLOURS ───────────────────────────────────────────────────
 const C = {
@@ -318,6 +318,7 @@ function ImageModal({ user, onClose, onSubmit }) {
   const [desc, setDesc] = useState("");
   const [severity, setSeverity] = useState("moderate");
   const [submitting, setSubmitting] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState(""); // "uploading" | "done" | "failed"
   const [success, setSuccess] = useState(false);
   const [preview, setPreview] = useState(null);
   const [fileObj, setFileObj] = useState(null);
@@ -346,14 +347,16 @@ function ImageModal({ user, onClose, onSubmit }) {
 
   const submit = async () => {
     setSubmitting(true);
-    // Upload image to Drive if we have a file, get back a shareable URL
     let mediaUrl = "";
     if (fileObj) {
+      setUploadStatus("uploading");
       mediaUrl = await uploadMediaToDrive(fileObj, fileObj.type || "image/jpeg", `${refId.current}.jpg`);
+      setUploadStatus(mediaUrl ? "done" : "failed");
     }
     await onSubmit({ reporter:user?.name||"Observer", reportType:"IMAGE", state, lga, severity,
       description: desc || "Image evidence captured",
-      lat: coords?.lat || "", lng: coords?.lng || "", mediaRef: mediaUrl || refId.current });
+      lat: coords?.lat || "", lng: coords?.lng || "",
+      mediaRef: mediaUrl || "" });
     setSubmitting(false);
     setSuccess(true);
   };
@@ -425,8 +428,26 @@ function ImageModal({ user, onClose, onSubmit }) {
             <label style={labelStyle}>Description</label>
             <textarea style={{...inputStyle,minHeight:70,resize:"none"}} placeholder="Describe what was captured…" value={desc} onChange={e=>setDesc(e.target.value)}/>
           </div>
+          {uploadStatus === "uploading" && (
+            <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10,
+              padding:"10px 14px",fontSize:13,color:"#1D4ED8",marginBottom:8,textAlign:"center"}}>
+              📤 Uploading image to Drive…
+            </div>
+          )}
+          {uploadStatus === "failed" && (
+            <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,
+              padding:"10px 14px",fontSize:13,color:"#DC2626",marginBottom:8,textAlign:"center"}}>
+              ⚠️ Image upload failed — report will submit without photo
+            </div>
+          )}
+          {uploadStatus === "done" && (
+            <div style={{background:"#E8F8ED",border:"1px solid #BBF7D0",borderRadius:10,
+              padding:"10px 14px",fontSize:13,color:"#15803D",marginBottom:8,textAlign:"center"}}>
+              ✓ Image uploaded to Drive
+            </div>
+          )}
           <button onClick={submit} disabled={submitting||!state} style={{...submitBtnStyle,opacity:state?1:0.5}}>
-            {submitting ? "Submitting…" : "Submit Image Report"}
+            {submitting ? (uploadStatus==="uploading" ? "Uploading image…" : "Submitting…") : "Submit Image Report"}
           </button>
         </>
       )}
@@ -522,7 +543,8 @@ function VideoModal({ user, onClose, onSubmit }) {
       mediaUrl = await uploadMediaToDrive(videoBlob, videoBlob.type || "video/webm", `${refId.current}.webm`);
     }
     await onSubmit({ reporter:user?.name||"Observer", reportType:"VIDEO", state, lga, severity,
-      description: desc || `Video evidence · ${fmt(secs)}`, lat:"", lng:"", mediaRef: mediaUrl || refId.current });
+      description: desc || `Video evidence · ${fmt(secs)}`, lat:"", lng:"",
+      mediaRef: mediaUrl || "" });
     setSubmitting(false);
     setSuccess(true);
   };
@@ -1023,9 +1045,9 @@ function HomePage({ user, onModal }) {
 
       {/* ── Live Stats Strip ── */}
       <div style={{flexShrink:0, margin:"0 16px",
-        background:"#111827",borderRadius:12,padding:"10px 14px"}}>
+        background:`linear-gradient(135deg,${C.green},${C.greenDark})`,borderRadius:12,padding:"10px 14px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
-          <span style={{fontSize:11,fontWeight:700,color:"#F9FAFB"}}>Field Activity — Today</span>
+          <span style={{fontSize:11,fontWeight:700,color:"#FFFFFF"}}>Field Activity — Today</span>
           <div style={{display:"flex",alignItems:"center",gap:5}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:"#EF4444",
               animation:"livePulseHome 1.4s ease infinite"}}/>
@@ -1040,9 +1062,9 @@ function HomePage({ user, onModal }) {
             {label:"States",   value:"31",  color:"#F59E0B"},
           ].map((s,i)=>(
             <div key={i} style={{flex:1,textAlign:"center",
-              borderLeft:i>0?`1px solid #374151`:undefined,padding:"2px 0"}}>
-              <div style={{fontSize:20,fontWeight:900,color:s.color,letterSpacing:-0.5}}>{s.value}</div>
-              <div style={{fontSize:9,color:"#9CA3AF",marginTop:1,fontWeight:500}}>{s.label}</div>
+              borderLeft:i>0?`1px solid rgba(255,255,255,0.3)`:undefined,padding:"2px 0"}}>
+              <div style={{fontSize:20,fontWeight:900,color:"#FFFFFF",letterSpacing:-0.5}}>{s.value}</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.75)",marginTop:1,fontWeight:500}}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -1399,11 +1421,16 @@ async function uploadMediaToDrive(fileOrBlob, mimeType, filename) {
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ action:"uploadMedia", base64, mimeType:uploadMime, filename:uploadName }),
     });
-    const data = await res.json();
-    console.log("Drive upload response:", data);
-    return data.success ? data.url : "";
+    // GAS returns text/plain — must parse as text first, not res.json()
+    const text = await res.text();
+    console.log("Drive upload raw response:", text.slice(0, 200));
+    const clean = text.slice(text.indexOf("{"));
+    if (!clean) { console.error("Empty GAS response"); return ""; }
+    const data = JSON.parse(clean);
+    console.log("Drive upload parsed:", data);
+    return data.success ? (data.url || data.fileId || "") : "";
   } catch (e) {
-    console.error("Media upload failed:", e);
+    console.error("Media upload failed:", e.message);
     return "";
   }
 }

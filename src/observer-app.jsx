@@ -1256,7 +1256,7 @@ async function submitReport(data) {
     return { success: true, refId: "INC-" + Date.now().toString().slice(-6) };
   }
   const res = await fetch(GAS_URL, { method:"POST",
-    headers:{"Content-Type":"application/json"}, body:JSON.stringify(data) });
+    headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(data) });
   return res.json();
 }
 
@@ -1394,7 +1394,7 @@ function LoginScreen({ onLogin }) {
       }
       const res = await fetch(GAS_URL + "?action=login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ phone: phone.trim(), password: password.trim() }),
       });
       const data = await res.json();

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── CONFIG ──────────────────────────────────────────────────
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw3TRTxBZlaOit_JW7Qw7Xm41pSobJdTKGmvBDQvv3xgH3vYOg8j8YYoai_MLsHH1cMjw/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxpBss-yR-9MSz1AAclxNMqypEmhIoZvX_lytvXgnLN-KxrxOcdY43TYGasAKZH7QXg5Q/exec";
 
 // ── COLOURS ─────────────────────────────────────────────────
 const C = {
@@ -17,6 +17,37 @@ const C = {
   low       : "#6B7280",
   liveDot   : "#EF4444",
 };
+
+// ── STAT CARD ICONS ───────────────────────────────────────────
+const AlertTriangleIcon = ({ color }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path d="M12 3L2 20h20L12 3z" stroke={color} strokeWidth="2" strokeLinejoin="round" fill="none"/>
+    <line x1="12" y1="9" x2="12" y2="13" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+    <circle cx="12" cy="16.5" r="1" fill={color}/>
+  </svg>
+);
+const MapPinStatIcon = ({ color }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path d="M12 21C12 21 19 15 19 10C19 6.13 15.87 3 12 3C8.13 3 5 6.13 5 10C5 15 12 21 12 21Z" stroke={color} strokeWidth="2" strokeLinejoin="round"/>
+    <circle cx="12" cy="10" r="2.5" fill={color}/>
+  </svg>
+);
+const DocStatIcon = ({ color }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke={color} strokeWidth="2" strokeLinejoin="round"/>
+    <path d="M14 2v6h6" stroke={color} strokeWidth="2" strokeLinejoin="round"/>
+    <line x1="8" y1="13" x2="16" y2="13" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+    <line x1="8" y1="17" x2="13" y2="17" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+const SirenStatIcon = ({ color }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2C9 2 6 4.5 6 9v6h12V9c0-4.5-3-7-6-7z" stroke={color} strokeWidth="2" strokeLinejoin="round"/>
+    <line x1="4" y1="15" x2="20" y2="15" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+    <line x1="4" y1="19" x2="20" y2="19" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+    <line x1="12" y1="2" x2="12" y2="0.5" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
 
 // ── NIGERIA STATE LAT/LNG (real coordinates) ─────────────────
 const STATE_LATLNG = {
@@ -182,8 +213,16 @@ function IncidentPopup({ state, incidents, onClose }) {
                 <div style={{fontWeight:700,fontSize:14,color:C.text}}>{incidentTitle(inc)}</div>
                 <SeverityBadge sev={inc.severity}/>
               </div>
-              <div style={{fontSize:13,color:C.sub,marginBottom:4}}>{inc.lga}</div>
-              <div style={{fontSize:13,color:C.text,lineHeight:1.5,marginBottom:6}}>{inc.description}</div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                <ReportTypeBadge type={inc.reportType}/>
+                <span style={{fontSize:13,color:C.sub}}>{inc.lga}</span>
+              </div>
+              <div style={{fontSize:11,fontWeight:700,color:C.sub,textTransform:"uppercase",
+                letterSpacing:0.6,marginBottom:3}}>Report Details</div>
+              <div style={{fontSize:13,color:C.text,lineHeight:1.5,marginBottom:6,
+                background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px"}}>
+                {inc.description || "No additional details provided."}
+              </div>
               <div style={{display:"flex",gap:16,fontSize:12,color:C.sub,flexWrap:"wrap"}}>
                 <span>🕐 {timeAgo(inc.timestamp)}</span>
                 <span>👤 {inc.reporter}</span>
@@ -246,12 +285,14 @@ function AllReportsModal({ incidents, onClose }) {
                 <div style={{fontWeight:700,fontSize:14,color:C.text}}>{incidentTitle(inc)}</div>
                 <SeverityBadge sev={inc.severity}/>
               </div>
-              <div style={{fontSize:13,color:C.sub,marginBottom:4}}>{inc.state} · {inc.lga}</div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                <ReportTypeBadge type={inc.reportType}/>
+                <span style={{fontSize:13,color:C.sub}}>{inc.state} · {inc.lga}</span>
+              </div>
               <div style={{fontSize:13,color:C.text,lineHeight:1.5,marginBottom:4}}>{inc.description}</div>
               <div style={{display:"flex",gap:16,fontSize:12,color:C.sub,flexWrap:"wrap"}}>
                 <span>🕐 {timeAgo(inc.timestamp)}</span>
                 <span>👤 {inc.reporter}</span>
-                <span>📋 {inc.reportType}</span>
                 <span style={{fontFamily:"monospace",color:C.green}}>{inc.refId}</span>
               </div>
             </div>
@@ -446,30 +487,90 @@ function LeafletIncidentMap({ incidents, onMarkerClick }) {
 }
 
 // ── STAT CARD ─────────────────────────────────────────────────
-function StatCard({ label, value, sub, icon }) {
+function StatCard({ label, value, sub, icon, color }) {
   return (
     <div style={{flex:1,background:C.white,border:`1px solid ${C.border}`,borderRadius:10,
-      padding:"16px 18px",minWidth:0,position:"relative"}}>
-      <div style={{fontSize:12,color:C.sub,marginBottom:6,paddingRight:28}}>{label}</div>
-      <div style={{fontSize:26,fontWeight:800,color:C.text,lineHeight:1}}>{value}</div>
-      <div style={{fontSize:12,color:C.sub,marginTop:5}}>{sub}</div>
-      <div style={{position:"absolute",top:14,right:14,opacity:0.55,fontSize:18}}>{icon}</div>
+      padding:"16px 18px",minWidth:0,position:"relative",display:"flex",
+      flexDirection:"column",justifyContent:"space-between"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+        <div style={{fontSize:12,color:C.sub,fontWeight:500}}>{label}</div>
+        <div style={{width:34,height:34,borderRadius:9,flexShrink:0,
+          background:color?`${color}1A`:C.greenLight,
+          display:"flex",alignItems:"center",justifyContent:"center"}}>
+          {icon}
+        </div>
+      </div>
+      <div>
+        <div style={{fontSize:26,fontWeight:800,color:C.text,lineHeight:1}}>{value}</div>
+        <div style={{fontSize:12,color:C.sub,marginTop:5}}>{sub}</div>
+      </div>
     </div>
   );
 }
 
 // ── INCIDENT ROW ──────────────────────────────────────────────
+// ── REPORT TYPE BADGE ─────────────────────────────────────────
+function ReportTypeBadge({ type }) {
+  const cfg = {
+    AUDIO:    { label:"Audio",    color:"#8B5CF6", icon:(
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+        <rect x="9" y="2" width="6" height="12" rx="3" fill="#8B5CF6"/>
+        <path d="M5 11a7 7 0 0014 0" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" fill="none"/>
+        <line x1="12" y1="18" x2="12" y2="22" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round"/>
+      </svg>) },
+    VIDEO:    { label:"Video",    color:"#EC4899", icon:(
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+        <rect x="2" y="5" width="14" height="14" rx="2" fill="#EC4899"/>
+        <path d="M16 10l6-3v10l-6-3z" fill="#EC4899"/>
+      </svg>) },
+    IMAGE:    { label:"Image",    color:"#3B82F6", icon:(
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+        <rect x="2" y="3" width="20" height="16" rx="2" fill="#3B82F6"/>
+        <circle cx="8" cy="9" r="2" fill="#fff"/>
+        <path d="M2 17l5-5 4 4 5-6 6 7H2z" fill="#fff" opacity="0.9"/>
+      </svg>) },
+    TEXT:     { label:"Text",     color:"#6B7280", icon:(
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+        <path d="M5 3h11l3 3v15H5z" fill="#6B7280"/>
+        <line x1="8" y1="11" x2="16" y2="11" stroke="#fff" strokeWidth="1.5"/>
+        <line x1="8" y1="15" x2="13" y2="15" stroke="#fff" strokeWidth="1.5"/>
+      </svg>) },
+    LOCATION: { label:"Location", color:"#10B981", icon:(
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+        <path d="M12 22s8-7 8-12a8 8 0 10-16 0c0 5 8 12 8 12z" fill="#10B981"/>
+        <circle cx="12" cy="10" r="2.5" fill="#fff"/>
+      </svg>) },
+    SOS:      { label:"SOS",      color:"#EF4444", icon:(
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L2 21h20L12 2z" fill="#EF4444"/>
+        <line x1="12" y1="9" x2="12" y2="14" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+        <circle cx="12" cy="17" r="1" fill="#fff"/>
+      </svg>) },
+  };
+  const c = cfg[type] || cfg.TEXT;
+  return (
+    <span style={{display:"inline-flex",alignItems:"center",gap:4,
+      background:`${c.color}1A`,color:c.color,fontSize:10,fontWeight:700,
+      borderRadius:6,padding:"2px 7px",flexShrink:0}}>
+      {c.icon}{c.label}
+    </span>
+  );
+}
+
 function IncidentRow({ inc, onClick }) {
   const title = incidentTitle(inc);
   const count = reportCount(inc);
   return (
     <button onClick={onClick} style={{width:"100%",background:"none",border:"none",cursor:"pointer",
       textAlign:"left",borderBottom:`1px solid ${C.border}`,padding:"11px 0"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:3}}>
-        <span style={{fontSize:13,fontWeight:600,color:C.text,flex:1,paddingRight:8}}>{title}</span>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5,gap:6}}>
+        <span style={{fontSize:13,fontWeight:600,color:C.text,flex:1,paddingRight:4}}>{title}</span>
         <SeverityBadge sev={inc.severity}/>
       </div>
-      <div style={{fontSize:12,color:C.sub,marginBottom:3}}>{inc.state} · {inc.lga}</div>
+      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+        <ReportTypeBadge type={inc.reportType}/>
+        <span style={{fontSize:12,color:C.sub}}>{inc.state} · {inc.lga}</span>
+      </div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <span style={{fontSize:11,color:C.sub}}>🕐 {timeAgo(inc.timestamp)}</span>
         <span style={{fontSize:11,fontWeight:600,color:C.text}}>{count.toLocaleString()} reports</span>
@@ -583,13 +684,13 @@ export default function Dashboard() {
         {/* ── Stat Cards ── */}
         <div style={{display:"flex",gap:14,marginBottom:18,flexShrink:0}}>
           <StatCard label="Number of Occurrences" value={totalReports.toLocaleString()}
-            sub="+12% from last week" icon="⚠️"/>
+            sub="+12% from last week" color={C.moderate} icon={<AlertTriangleIcon color={C.moderate}/>}/>
           <StatCard label="Location of Election"  value={`${summary.states} States`}
-            sub="774 LGAs monitored" icon="📍"/>
+            sub="774 LGAs monitored" color={C.green} icon={<MapPinStatIcon color={C.green}/>}/>
           <StatCard label="Incident Reports" value={incidents.length.toLocaleString()}
-            sub={`Updated ${timeAgo(lastUpdate.toISOString())}`} icon="📄"/>
+            sub={`Updated ${timeAgo(lastUpdate.toISOString())}`} color="#3B82F6" icon={<DocStatIcon color="#3B82F6"/>}/>
           <StatCard label="Critical Alerts" value={criticalCount}
-            sub={`${incidents.filter(i=>i.severity==="moderate").length} moderate`} icon="🚨"/>
+            sub={`${incidents.filter(i=>i.severity==="moderate").length} moderate`} color={C.critical} icon={<SirenStatIcon color={C.critical}/>}/>
         </div>
 
         {/* ── Main Layout ── */}

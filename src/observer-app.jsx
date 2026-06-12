@@ -936,8 +936,8 @@ function HomePage({ user, onModal }) {
           </div>
         </div>
         <div style={{textAlign:"right",lineHeight:1}}>
-          <div style={{fontSize:24,fontWeight:900,color:C.green,letterSpacing:-1}}>ESI</div>
-          <div style={{fontSize:10,color:C.greyDark,fontWeight:600,marginTop:-2}}>HUB</div>
+          <div style={{fontSize:24,fontWeight:900,color:C.green,letterSpacing:-1}}>EMS</div>
+          <div style={{fontSize:10,color:C.greyDark,fontWeight:600,marginTop:-2}}>ELECTION MONITORING</div>
         </div>
       </div>
 
@@ -1006,10 +1006,10 @@ function ContactsPage() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ name:"", phone:"" });
 
-  // ESI team contacts
+  // EMS team contacts
   const teamContacts = [
     {name:"NEMA",              role:"National Emergency Mgmt Agency · 112", initials:"NE", tel:"tel:112"},
-    {name:"ESI Field Team",   role:"Election Safety & Intelligence", initials:"EF", tel:"tel:+2348000000003"},
+    {name:"EMS Field Team",   role:"Election Monitoring & Safety", initials:"EF", tel:"tel:+2348000000003"},
     {name:"Control Room",     role:"24/7 Emergency Line",           initials:"CR", tel:"tel:+2348000000004"},
   ];
 
@@ -1101,7 +1101,7 @@ function ContactsPage() {
         </div>
       </div>
 
-      {/* ── ESI Team ── */}
+      {/* ── EMS Team ── */}
       <div style={{fontSize:11,fontWeight:700,color:C.greyDark,textTransform:"uppercase",
         letterSpacing:1,marginBottom:8}}>INEC Team</div>
       {teamContacts.map((c,i)=>(
@@ -1268,10 +1268,10 @@ function Splash({ onDone }) {
       background:`linear-gradient(160deg,${C.green},${C.greenDark})`,
       display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20,zIndex:1000}}>
       <div style={{textAlign:"center"}}>
-        <div style={{fontSize:38,fontWeight:900,color:"#fff",letterSpacing:-1}}>ESI</div>
-        <div style={{fontSize:15,fontWeight:600,color:"rgba(255,255,255,0.85)",marginTop:2}}>HUB</div>
+        <div style={{fontSize:38,fontWeight:900,color:"#fff",letterSpacing:-1}}>EMS</div>
+        <div style={{fontSize:15,fontWeight:600,color:"rgba(255,255,255,0.85)",marginTop:2}}>ELECTION MONITORING SYSTEM</div>
       </div>
-      <div style={{fontSize:13,color:"rgba(255,255,255,0.7)"}}>Election Safety Intelligence</div>
+      <div style={{fontSize:13,color:"rgba(255,255,255,0.7)"}}>Election Monitoring System</div>
       <div style={{marginTop:16,width:48,height:4,background:"rgba(255,255,255,0.25)",borderRadius:2,overflow:"hidden"}}>
         <div style={{height:"100%",background:"#fff",borderRadius:2,animation:"loadBar 2s ease forwards"}}/>
       </div>
@@ -1416,9 +1416,9 @@ function LoginScreen({ onLogin }) {
       {/* Green header band */}
       <div style={{background:`linear-gradient(160deg,${C.green},${C.greenDark})`,
         padding:"52px 32px 40px",textAlign:"center"}}>
-        <div style={{fontSize:42,fontWeight:900,color:"#fff",letterSpacing:-1,lineHeight:1}}>ESI</div>
-        <div style={{fontSize:14,fontWeight:600,color:"rgba(255,255,255,0.8)",marginTop:2,letterSpacing:2}}>HUB</div>
-        <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",marginTop:6}}>Election Safety Intelligence</div>
+        <div style={{fontSize:42,fontWeight:900,color:"#fff",letterSpacing:-1,lineHeight:1}}>EMS</div>
+        <div style={{fontSize:14,fontWeight:600,color:"rgba(255,255,255,0.8)",marginTop:2,letterSpacing:2}}>ELECTION MONITORING SYSTEM</div>
+        <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",marginTop:6}}>Election Monitoring System</div>
       </div>
 
       {/* Login card */}
@@ -1482,14 +1482,6 @@ function LoginScreen({ onLogin }) {
           }
         </button>
 
-        <div style={{marginTop:20,padding:"14px 16px",background:"#F0FDF4",borderRadius:12,
-          border:`1px solid #BBF7D0`}}>
-          <div style={{fontSize:12,fontWeight:600,color:C.green,marginBottom:4}}>Demo mode</div>
-          <div style={{fontSize:12,color:C.greyDark,lineHeight:1.5}}>
-            No GAS URL set — any credentials will work.<br/>
-            Connect your backend to enable real authentication.
-          </div>
-        </div>
       </div>
 
       <div style={{padding:"0 24px 32px",textAlign:"center",fontSize:11,color:C.grey}}>

@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EMS — Backend Diagnostic</title>
+<style>
+  :root {
+    --green: #3CB043;
+    --green-dark: #279E2C;
+    --red: #EF4444;
+    --amber: #F59E0B;
+    --blue: #3B82F6;
+    --bg: #F9FAFB;
+    --card: #fff;
+    --border: #E5E7EB;
+    --text: #111827;
+    --muted: #6B7280;
+    --mono: ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+  header {
+    max-width: 680px;
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--green), var(--green-dark));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 900; font-size: 13px; letter-spacing: -0.5px;
+  }
+  header h1 { font-size: 18px; font-weight: 700; }
+  header p  { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .url-bar {
+    max-width: 680px;
+    margin: 0 auto 20px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .url-bar label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; display: block; margin-bottom: 6px; }
+  .url-bar input {
+    width: 100%; font-family: var(--mono); font-size: 12px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 9px 11px; color: var(--text); background: var(--bg); outline: none;
+  }
+  .url-bar input:focus { border-color: var(--green); }
+
+  .run-all {
+    max-width: 680px;
+    margin: 0 auto 24px;
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--green), var(--green-dark));
+    color: #fff; font-size: 15px; font-weight: 700;
+    border: none; border-radius: 12px; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(60,176,67,0.3);
+    display: block;
+    transition: opacity 0.2s;
+  }
+  .run-all:disabled { opacity: 0.6; cursor: default; }
+
+  .tests { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+  .test-card {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .test-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .test-header:hover { background: #FAFAFA; }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #D1D5DB; flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .status-dot.pass    { background: var(--green); }
+  .status-dot.fail    { background: var(--red); }
+  .status-dot.running { background: var(--amber); animation: pulse 0.8s ease-in-out infinite alternate; }
+  @keyframes pulse { to { opacity: 0.4; } }
+
+  .test-title { font-size: 14px; font-weight: 700; flex: 1; }
+  .test-method {
+    font-size: 11px; font-weight: 700; font-family: var(--mono);
+    padding: 3px 8px; border-radius: 5px; background: #EEF2FF; color: #4F46E5;
+  }
+  .test-method.get { background: #F0FDF4; color: #15803D; }
+  .test-method.post { background: #EFF6FF; color: #1D4ED8; }
+
+  .badge {
+    font-size: 11px; font-weight: 700;
+    padding: 3px 8px; border-radius: 6px;
+    display: none;
+  }
+  .badge.pass { display: inline-block; background: #DCFCE7; color: #15803D; }
+  .badge.fail { display: inline-block; background: #FEE2E2; color: #B91C1C; }
+  .badge.running { display: inline-block; background: #FEF3C7; color: #92400E; }
+
+  .test-body { border-top: 1px solid var(--border); padding: 14px 16px; display: none; }
+  .test-body.open { display: block; }
+
+  .sub-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; margin-top: 12px; }
+  .sub-label:first-child { margin-top: 0; }
+
+  pre {
+    font-family: var(--mono); font-size: 12px; line-height: 1.6;
+    background: #F3F4F6; border-radius: 8px;
+    padding: 10px 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+    color: #374151;
+    max-height: 220px; overflow-y: auto;
+  }
+  pre.pass { background: #F0FDF4; color: #166534; }
+  pre.fail { background: #FEF2F2; color: #991B1B; }
+
+  .verdict {
+    margin-top: 10px;
+    padding: 10px 13px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .verdict.pass { background: #F0FDF4; color: #15803D; border: 1px solid #BBF7D0; }
+  .verdict.fail { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+  .verdict.warn { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
+
+  .run-one {
+    margin-top: 14px;
+    padding: 9px 16px;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .run-one:hover { border-color: var(--green); color: var(--green); }
+
+  .credentials-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;
+  }
+  .credentials-row input {
+    padding: 9px 11px; border-radius: 8px;
+    border: 1.5px solid var(--border); font-size: 13px;
+    background: var(--bg); color: var(--text); outline: none;
+    font-family: inherit;
+  }
+  .credentials-row input:focus { border-color: var(--green); }
+
+  .summary-bar {
+    max-width: 680px; margin: 0 auto 20px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  }
+  .summary-box {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 11px; padding: 12px 14px; text-align: center;
+  }
+  .summary-box .num { font-size: 24px; font-weight: 800; color: var(--text); }
+  .summary-box .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .summary-box.pass-box .num { color: var(--green); }
+  .summary-box.fail-box .num { color: var(--red); }
+  .summary-box.warn-box .num { color: var(--amber); }
+
+  .chevron { font-size: 12px; color: var(--muted); transition: transform 0.2s; }
+  .chevron.open { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">EMS</div>
+  <div>
+    <h1>Backend Diagnostic</h1>
+    <p>Tests every GAS endpoint — login, submit &amp; pull</p>
+  </div>
+</header>
+
+<div class="url-bar">
+  <label>Google Apps Script URL</label>
+  <input id="gasUrl" type="url" value="https://script.google.com/macros/s/AKfycbx6RU2hcrNv9ig33c1tp-OGvw1-Wx_BkwSjfzm1_8zvGeKRcQB82VbYYgJOfJ3l3l1LeQ/exec"/>
+</div>
+
+<div class="summary-bar">
+  <div class="summary-box"><div class="num" id="s-total">—</div><div class="lbl">Total</div></div>
+  <div class="summary-box pass-box"><div class="num" id="s-pass">—</div><div class="lbl">Passed</div></div>
+  <div class="summary-box fail-box"><div class="num" id="s-fail">—</div><div class="lbl">Failed</div></div>
+  <div class="summary-box warn-box"><div class="num" id="s-time">—</div><div class="lbl">ms avg</div></div>
+</div>
+
+<button class="run-all" id="runAll" onclick="runAll()">▶ Run All Tests</button>
+
+<div class="tests" id="tests"></div>
+
+<script>
+const GAS_URL = () => document.getElementById('gasUrl').value.trim();
+
+// ── Test definitions ──────────────────────────────────────────
+const TESTS = [
+  {
+    id: 'reach',
+    title: 'Reachability — GAS responds at all',
+    method: 'GET',
+    description: 'A plain GET with no action parameter. Expects a JSON response with success:true and an incidents array.',
+    async run(url) {
+      const res = await timedFetch(url, { method: 'GET' });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const data = await res.json();
+      if (typeof data.success === 'undefined') throw new Error('Response missing "success" field — may not be the correct GAS URL.');
+      if (!data.success) throw new Error('GAS returned success:false — ' + (data.error || 'no error message'));
+      if (!Array.isArray(data.incidents)) throw new Error('Response missing "incidents" array');
+      return {
+        verdict: `✓ GAS is reachable. Returned ${data.incidents.length} incident(s).`,
+        raw: data,
+      };
+    }
+  },
+  {
+    id: 'cors',
+    title: 'CORS headers — browser can read the response',
+    method: 'GET',
+    description: 'Checks that Access-Control-Allow-Origin is set correctly so the app can read data in a browser context.',
+    async run(url) {
+      const res = await timedFetch(url, { method: 'GET' });
+      const acao = res.headers.get('Access-Control-Allow-Origin');
+      if (!acao) throw new Error('Access-Control-Allow-Origin header is missing. Redeploy GAS with CORS headers enabled.');
+      if (acao !== '*' && acao !== window.location.origin) {
+        return {
+          verdict: `⚠ CORS header is set to "${acao}" — this may block the app if it's served from a different origin. Change to "*" in the cors() helper in Code.gs.`,
+          warn: true,
+          raw: { 'Access-Control-Allow-Origin': acao },
+        };
+      }
+      return {
+        verdict: `✓ CORS header present: Access-Control-Allow-Origin: ${acao}`,
+        raw: { 'Access-Control-Allow-Origin': acao },
+      };
+    }
+  },
+  {
+    id: 'login-post',
+    title: 'Login — POST with phone + password',
+    method: 'POST',
+    description: 'The primary login path used by the observer app. Sends credentials as JSON via POST.',
+    inputs: ['loginPhone', 'loginPassword'],
+    async run(url, inputs) {
+      const phone    = inputs.loginPhone    || '08000000000';
+      const password = inputs.loginPassword || 'demo1234';
+      const res = await timedFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'login', phone, password }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const data = await res.json();
+      if (!data.success) throw new Error('Login failed — ' + (data.error || 'no error returned'));
+      const u = data.user;
+      if (!u || !u.name) throw new Error('Login succeeded but user object is missing or malformed.');
+      return {
+        verdict: `✓ Login OK. Name: ${u.name} · Role: ${u.role} · State: ${u.state} · ID: ${u.observerId}`,
+        raw: data,
+      };
+    }
+  },
+  {
+    id: 'login-get',
+    title: 'Login — GET fallback (CORS workaround path)',
+    method: 'GET',
+    description: 'Alternate login using URL query params. Used as a CORS-safe fallback since GET requests skip preflight.',
+    inputs: ['loginPhone', 'loginPassword'],
+    async run(url, inputs) {
+      const phone    = encodeURIComponent(inputs.loginPhone    || '08000000000');
+      const password = encodeURIComponent(inputs.loginPassword || 'demo1234');
+      const res = await timedFetch(`${url}?action=login&phone=${phone}&password=${password}`, { method: 'GET' });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const data = await res.json();
+      if (!data.success) throw new Error('Login failed — ' + (data.error || 'no error returned'));
+      return {
+        verdict: `✓ GET login OK. Logged in as: ${data.user?.name}`,
+        raw: data,
+      };
+    }
+  },
+  {
+    id: 'login-wrong-pw',
+    title: 'Login — wrong password rejected',
+    method: 'POST',
+    description: 'Confirms the backend correctly rejects bad credentials and returns a useful error message.',
+    inputs: ['loginPhone'],
+    async run(url, inputs) {
+      const phone = inputs.loginPhone || '08000000000';
+      const res = await timedFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'login', phone, password: '__definitely_wrong__' }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const data = await res.json();
+      if (data.success) throw new Error('Backend accepted wrong password — authentication is broken!');
+      return {
+        verdict: `✓ Wrong password correctly rejected. Error: "${data.error}"`,
+        raw: data,
+      };
+    }
+  },
+  {
+    id: 'submit',
+    title: 'Submit incident report',
+    method: 'POST',
+    description: 'Posts a test incident to the Incidents sheet. Checks for a success response and a generated ref ID.',
+    async run(url) {
+      const payload = {
+        action: 'submit',
+        reporter: 'EMS Diagnostic Tool',
+        reportType: 'TEST',
+        state: 'FCT',
+        lga: 'Abuja Municipal',
+        severity: 'low',
+        description: 'Automated diagnostic test — safe to delete this row from the sheet.',
+        lat: '9.0579',
+        lng: '7.4951',
+        mediaRef: '',
+      };
+      const res = await timedFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const data = await res.json();
+      if (!data.success) throw new Error('Submit failed — ' + (data.error || 'no error message'));
+      if (!data.refId) throw new Error('Submit succeeded but no refId returned');
+      return {
+        verdict: `✓ Incident submitted. Ref: ${data.refId} · Timestamp: ${data.timestamp}\n\nNote: a test row was written to your Incidents sheet — delete it when done.`,
+        raw: data,
+      };
+    }
+  },
+  {
+    id: 'pull',
+    title: 'Pull incidents — data fetch for dashboard',
+    method: 'GET',
+    description: 'Fetches all incidents as the dashboard does. Validates structure: summary counts, incidents array, and field completeness.',
+    async run(url) {
+      const res = await timedFetch(url, { method: 'GET' });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const data = await res.json();
+      if (!data.success) throw new Error('Pull failed — ' + (data.error || 'unknown error'));
+      const { summary, incidents } = data;
+      if (!summary) throw new Error('Response missing "summary" object');
+      if (!Array.isArray(incidents)) throw new Error('Response missing "incidents" array');
+
+      const issues = [];
+      if (incidents.length > 0) {
+        const sample = incidents[0];
+        const requiredFields = ['refId','reporter','reportType','state','severity','description','timestamp'];
+        requiredFields.forEach(f => { if (sample[f] === undefined) issues.push(`Field "${f}" missing from incident objects`); });
+      }
+
+      const warn = issues.length > 0;
+      return {
+        verdict: `${warn ? '⚠' : '✓'} Pulled ${incidents.length} incident(s). Summary — Total: ${summary.total}, Critical: ${summary.critical}, Moderate: ${summary.moderate}, Low: ${summary.low}, States: ${summary.states}${warn ? '\n\nWarnings:\n' + issues.join('\n') : ''}`,
+        warn,
+        raw: { summary, sample: incidents[0] || null, total: incidents.length },
+      };
+    }
+  },
+  {
+    id: 'inactive',
+    title: 'Inactive account — blocked from login',
+    method: 'POST',
+    description: 'Verifies that accounts marked Active=FALSE in the Users sheet cannot log in. (Skipped if phone not provided.)',
+    inputs: ['inactivePhone', 'inactivePassword'],
+    async run(url, inputs) {
+      if (!inputs.inactivePhone || !inputs.inactivePassword) {
+        return {
+          verdict: '— Skipped: enter an inactive account\'s phone and password above to run this check.',
+          skip: true,
+          raw: null,
+        };
+      }
+      const res = await timedFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'login', phone: inputs.inactivePhone, password: inputs.inactivePassword }),
+      });
+      const data = await res.json();
+      if (data.success) throw new Error('Inactive account was allowed to log in — check Active column in Users sheet.');
+      if (!data.error.toLowerCase().includes('inactive')) {
+        return {
+          verdict: `⚠ Blocked, but error message doesn't mention "inactive": "${data.error}"`,
+          warn: true,
+          raw: data,
+        };
+      }
+      return {
+        verdict: `✓ Inactive account correctly blocked. Error: "${data.error}"`,
+        raw: data,
+      };
+    }
+  },
+];
+
+// ── State ─────────────────────────────────────────────────────
+const state = {};
+let timings = [];
+
+function timedFetch(url, opts) {
+  const t0 = performance.now();
+  return fetch(url, opts).then(r => {
+    timings.push(performance.now() - t0);
+    return r;
+  });
+}
+
+// ── Render test cards ─────────────────────────────────────────
+function renderTests() {
+  const container = document.getElementById('tests');
+  container.innerHTML = '';
+
+  TESTS.forEach(test => {
+    const card = document.createElement('div');
+    card.className = 'test-card';
+    card.id = 'card-' + test.id;
+
+    const needsInputs = test.inputs && test.inputs.length;
+    const isLoginTest = needsInputs && test.inputs.includes('loginPhone');
+    const isInactive  = needsInputs && test.inputs.includes('inactivePhone');
+
+    let inputsHtml = '';
+    if (isLoginTest) {
+      inputsHtml = `
+        <div class="sub-label">Test credentials</div>
+        <div class="credentials-row">
+          <input id="loginPhone" type="tel" placeholder="Phone e.g. 08000000000" value="08000000000"/>
+          <input id="loginPassword" type="password" placeholder="Password" value="demo1234"/>
+        </div>`;
+    }
+    if (isInactive) {
+      inputsHtml = `
+        <div class="sub-label">Inactive account (optional)</div>
+        <div class="credentials-row">
+          <input id="inactivePhone" type="tel" placeholder="Inactive phone"/>
+          <input id="inactivePassword" type="password" placeholder="Password"/>
+        </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="test-header" onclick="toggleBody('${test.id}')">
+        <div class="status-dot" id="dot-${test.id}"></div>
+        <span class="test-title">${test.title}</span>
+        <span class="test-method ${test.method.toLowerCase()}">${test.method}</span>
+        <span class="badge" id="badge-${test.id}"></span>
+        <span class="chevron" id="chev-${test.id}">▼</span>
+      </div>
+      <div class="test-body" id="body-${test.id}">
+        <div class="sub-label">What this checks</div>
+        <p style="font-size:13px;color:#374151;line-height:1.6;margin-bottom:12px">${test.description}</p>
+        ${inputsHtml}
+        <div id="result-${test.id}" style="display:none">
+          <div class="sub-label">Result</div>
+          <pre id="pre-${test.id}"></pre>
+          <div class="verdict" id="verdict-${test.id}"></div>
+          <div id="raw-wrap-${test.id}" style="margin-top:10px;display:none">
+            <div class="sub-label">Raw response</div>
+            <pre id="raw-${test.id}"></pre>
+          </div>
+        </div>
+        <button class="run-one" onclick="runOne('${test.id}')">Run this test</button>
+      </div>`;
+
+    container.appendChild(card);
+  });
+}
+
+function toggleBody(id) {
+  const body = document.getElementById('body-' + id);
+  const chev = document.getElementById('chev-' + id);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chev.classList.toggle('open', !isOpen);
+}
+
+function setStatus(id, status) {
+  const dot   = document.getElementById('dot-'   + id);
+  const badge = document.getElementById('badge-' + id);
+  dot.className   = 'status-dot ' + status;
+  badge.className = 'badge ' + status;
+  badge.textContent = status === 'running' ? 'Running…' : status === 'pass' ? 'Pass' : status === 'fail' ? 'Fail' : status === 'warn' ? 'Warn' : '';
+}
+
+function getInputs() {
+  const get = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  return {
+    loginPhone:      get('loginPhone'),
+    loginPassword:   get('loginPassword'),
+    inactivePhone:   get('inactivePhone'),
+    inactivePassword:get('inactivePassword'),
+  };
+}
+
+async function runOne(id) {
+  const test = TESTS.find(t => t.id === id);
+  const url  = GAS_URL();
+  if (!url) { alert('Paste your GAS URL first.'); return; }
+
+  // Open body
+  const body = document.getElementById('body-' + id);
+  const chev = document.getElementById('chev-' + id);
+  body.classList.add('open');
+  chev.classList.add('open');
+
+  setStatus(id, 'running');
+  document.getElementById('result-' + id).style.display = 'none';
+
+  try {
+    const result = await test.run(url, getInputs());
+
+    if (result.skip) {
+      setStatus(id, '');
+      document.getElementById('dot-' + id).className = 'status-dot';
+      document.getElementById('badge-' + id).className = 'badge';
+    } else if (result.warn) {
+      setStatus(id, 'warn');
+    } else {
+      setStatus(id, 'pass');
+    }
+
+    showResult(id, result, null);
+  } catch (err) {
+    setStatus(id, 'fail');
+    showResult(id, null, err);
+  }
+  updateSummary();
+}
+
+function showResult(id, result, err) {
+  const wrap    = document.getElementById('result-' + id);
+  const pre     = document.getElementById('pre-'    + id);
+  const verdict = document.getElementById('verdict-' + id);
+  const rawWrap = document.getElementById('raw-wrap-' + id);
+  const raw     = document.getElementById('raw-'    + id);
+
+  wrap.style.display = 'block';
+
+  if (err) {
+    pre.className = 'fail';
+    pre.textContent = err.message;
+    verdict.className = 'verdict fail';
+    verdict.textContent = diagnose(err.message);
+    rawWrap.style.display = 'none';
+  } else {
+    pre.className = result.warn ? '' : result.skip ? '' : 'pass';
+    pre.textContent = result.verdict;
+    verdict.className = 'verdict ' + (result.skip ? 'warn' : result.warn ? 'warn' : 'pass');
+    verdict.textContent = result.skip ? 'Test skipped — provide credentials to run.' : result.warn ? 'Passed with warnings — review above.' : 'All checks passed.';
+    if (result.raw) {
+      rawWrap.style.display = 'block';
+      raw.textContent = JSON.stringify(result.raw, null, 2);
+    }
+  }
+}
+
+function diagnose(msg) {
+  if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('TypeError'))
+    return 'Network / CORS block — the browser could not reach GAS at all. Most likely cause: GAS is not deployed as "Anyone can access", or a CORS preflight was rejected. Open the GAS editor → Deploy → Manage Deployments → verify Access = Anyone.';
+  if (msg.includes('HTTP 4'))
+    return 'The GAS script returned a client error. Check the URL is correct and the deployment is active.';
+  if (msg.includes('HTTP 5'))
+    return 'The GAS script threw a server-side error. Open GAS → Executions to see the stack trace.';
+  if (msg.includes('JSON'))
+    return 'Response was not valid JSON — GAS may have returned an HTML error page. Check GAS → Executions for errors.';
+  if (msg.includes('success'))
+    return 'GAS responded but returned success:false. Check sheet access permissions and that the SHEET_ID in Code.gs is correct.';
+  if (msg.includes('wrong password') || msg.includes('accepted wrong'))
+    return 'Authentication bypass detected. The hashPassword() function in Code.gs may not be matching stored hashes correctly.';
+  return 'Unexpected error — see the raw message above and check GAS → Executions for a server-side stack trace.';
+}
+
+async function runAll() {
+  const url = GAS_URL();
+  if (!url) { alert('Paste your GAS URL first.'); return; }
+  timings = [];
+  const btn = document.getElementById('runAll');
+  btn.disabled = true;
+  btn.textContent = 'Running…';
+
+  // Reset all
+  TESTS.forEach(t => {
+    document.getElementById('dot-'    + t.id).className = 'status-dot';
+    document.getElementById('badge-' + t.id).className = 'badge';
+    document.getElementById('badge-' + t.id).textContent = '';
+    document.getElementById('result-' + t.id).style.display = 'none';
+  });
+
+  for (const test of TESTS) {
+    setStatus(test.id, 'running');
+    // open the body so user can see progress
+    document.getElementById('body-' + test.id).classList.add('open');
+    document.getElementById('chev-' + test.id).classList.add('open');
+    try {
+      const result = await test.run(url, getInputs());
+      if (result.skip)      setStatus(test.id, '');
+      else if (result.warn) setStatus(test.id, 'warn');
+      else                  setStatus(test.id, 'pass');
+      showResult(test.id, result, null);
+    } catch (err) {
+      setStatus(test.id, 'fail');
+      showResult(test.id, null, err);
+    }
+    updateSummary();
+    await new Promise(r => setTimeout(r, 200)); // slight pause between tests
+  }
+
+  btn.disabled = false;
+  btn.textContent = '▶ Run All Tests';
+}
+
+function updateSummary() {
+  const dots  = document.querySelectorAll('.status-dot');
+  let pass = 0, fail = 0, total = 0;
+  dots.forEach(d => {
+    if (d.classList.contains('pass')) { pass++; total++; }
+    if (d.classList.contains('fail')) { fail++; total++; }
+    if (d.classList.contains('warn')) { total++; }
+  });
+  document.getElementById('s-total').textContent = TESTS.length;
+  document.getElementById('s-pass').textContent  = pass || '—';
+  document.getElementById('s-fail').textContent  = fail || '—';
+  const avg = timings.length ? Math.round(timings.reduce((a,b)=>a+b,0)/timings.length) : '—';
+  document.getElementById('s-time').textContent  = avg;
+}
+
+renderTests();
+</script>
+</body>
+</html>

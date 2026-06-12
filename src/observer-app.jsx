@@ -802,8 +802,9 @@ function TrackLocationMap({ expanded, onCollapse }) {
   const initLeaflet = (container, lat, lng, interactive) => {
     if (!window.L || !container) return null;
     const map = window.L.map(container, {
-      zoomControl: interactive, attributionControl: false,
-      dragging: interactive, scrollWheelZoom: false, doubleClickZoom: interactive,
+      zoomControl: true, attributionControl: false,
+      dragging: true, scrollWheelZoom: true, doubleClickZoom: true,
+      touchZoom: true,
     });
     window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
       { maxZoom: 19 }).addTo(map);

@@ -606,6 +606,7 @@ export default function Dashboard() {
   const [loading,    setLoading]    = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [popup,      setPopup]      = useState(null);   // { state, incidents }
+  const [mapFullscreen, setMapFullscreen] = useState(false);
   const [showAll,    setShowAll]    = useState(false);
   const [showByState,setShowByState]= useState(false);
 
@@ -715,6 +716,16 @@ export default function Dashboard() {
                   <span style={{width:14,height:14,borderRadius:"50%",background:C.critical,display:"inline-block"}}/>
                   Critical
                 </span>
+                <button onClick={()=>setMapFullscreen(true)}
+                  title="Fullscreen map"
+                  style={{marginLeft:6,padding:"4px 8px",borderRadius:6,border:`1px solid ${C.border}`,
+                    background:C.white,cursor:"pointer",display:"flex",alignItems:"center",gap:5,
+                    fontSize:11,fontWeight:600,color:C.text}}>
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                    <path d="M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Expand
+                </button>
               </div>
             </div>
             {/* Real Leaflet map */}
@@ -725,6 +736,41 @@ export default function Dashboard() {
               Click any marker to view incident details · Powered by OpenStreetMap (no API key required)
             </p>
           </div>
+
+          {/* Fullscreen map overlay */}
+          {mapFullscreen && (
+            <div style={{position:"fixed",inset:0,zIndex:9999,background:C.white,display:"flex",flexDirection:"column"}}>
+              <div style={{flexShrink:0,padding:"12px 20px",borderBottom:`1px solid ${C.border}`,
+                display:"flex",justifyContent:"space-between",alignItems:"center",background:C.white}}>
+                <div style={{display:"flex",alignItems:"center",gap:16}}>
+                  <span style={{fontSize:15,fontWeight:700,color:C.text}}>Incident Distribution Map</span>
+                  <div style={{display:"flex",alignItems:"center",gap:12,fontSize:12,color:C.sub}}>
+                    <span style={{display:"flex",alignItems:"center",gap:4}}>
+                      <span style={{width:10,height:10,borderRadius:"50%",background:"#9CA3AF",display:"inline-block"}}/>Low
+                    </span>
+                    <span style={{display:"flex",alignItems:"center",gap:4}}>
+                      <span style={{width:12,height:12,borderRadius:"50%",background:C.moderate,display:"inline-block"}}/>Moderate
+                    </span>
+                    <span style={{display:"flex",alignItems:"center",gap:4}}>
+                      <span style={{width:14,height:14,borderRadius:"50%",background:C.critical,display:"inline-block"}}/>Critical
+                    </span>
+                  </div>
+                </div>
+                <button onClick={()=>setMapFullscreen(false)}
+                  style={{padding:"7px 16px",borderRadius:8,border:`1px solid ${C.border}`,
+                    background:C.white,cursor:"pointer",display:"flex",alignItems:"center",gap:6,
+                    fontSize:13,fontWeight:600,color:C.text}}>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M6 1v5H1M10 1v5h5M1 10h5v5M15 10h-5v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Exit Fullscreen
+                </button>
+              </div>
+              <div style={{flex:1,minHeight:0,position:"relative"}}>
+                <LeafletIncidentMap incidents={incidents} onMarkerClick={(s,incs)=>{setPopup({state:s,incs});setMapFullscreen(false);}}/>
+              </div>
+            </div>
+          )}
 
           {/* Right: Reports panel */}
           <div style={{width:310,flexShrink:0,background:C.white,border:`1px solid ${C.border}`,
